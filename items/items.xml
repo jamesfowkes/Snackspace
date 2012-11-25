@@ -1,0 +1,49 @@
+<xml>
+	<items>
+		<item>
+			<barcode>1</barcode>
+			<description>KitKat Chunky</description>
+			<priceinpence>50</priceinpence>
+		</item>
+		<item>
+			<barcode>2</barcode>
+			<description>Double Decker</description>
+			<priceinpence>120</priceinpence>
+		</item>
+		<item>
+			<barcode>3</barcode>
+			<description>Pringles Can</description>
+			<priceinpence>120</priceinpence>
+		</item>
+		<item>
+			<barcode>4</barcode>
+			<description>Pot Noodle</description>
+			<priceinpence>120</priceinpence>
+		</item>
+		<item>
+			<barcode>5</barcode>
+			<description>Mixed Nuts (1 Scoop)</description>
+			<priceinpence>120</priceinpence>
+		</item>
+		<item>
+			<barcode>6</barcode>
+			<description>Mixed Fruit and Nuts (1 Scoop)</description>
+			<priceinpence>120</priceinpence>
+		</item>
+		<item>
+			<barcode>7</barcode>
+			<description>Chocolate Bar</description>
+			<priceinpence>120</priceinpence>
+		</item>
+		<item>
+			<barcode>8</barcode>
+			<description>Seabrooks Crisps</description>
+			<priceinpence>120</priceinpence>
+		</item>
+		<item>
+			<barcode>9</barcode>
+			<description>Altoids</description>
+			<priceinpence>120</priceinpence>
+		</item>
+	</items>
+</xml>
