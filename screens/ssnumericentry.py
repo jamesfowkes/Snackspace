@@ -23,17 +23,21 @@ class SSNumericEntry:
 		button = self.gui.getObjectId(pos)
 		
 		if button >= self.gui.KEY0 and button <= self.gui.KEY9:
+			#Let button press decide whether to play sound or not
 			self.newButtonPress(button)
-		elif button == self.gui.FIVEPOUNDS:
-			self.setAmount(500)
-		elif button == self.gui.TENPOUNDS:
-			self.setAmount(1000)
-		elif button == self.gui.TWENTYPOUNDS:
-			self.setAmount(2000)
-		elif button == self.gui.DONE:
-			self.chargeAndExit()
-		elif button == self.gui.CANCEL:
-			self.exit()
+		else:
+			#Play sound unconditionally for other buttons
+			self.gui.playSound()
+			if button == self.gui.FIVEPOUNDS:
+				self.setAmount(500)
+			elif button == self.gui.TENPOUNDS:
+				self.setAmount(1000)
+			elif button == self.gui.TWENTYPOUNDS:
+				self.setAmount(2000)
+			elif button == self.gui.DONE:
+				self.chargeAndExit()
+			elif button == self.gui.CANCEL:
+				self.exit()
 
 	def setAmount(self, amount):
 		self.amountinpence = amount
@@ -43,6 +47,9 @@ class SSNumericEntry:
 	def newButtonPress(self, key):
 		
 		if ((self.amountinpence * 10) + key) <= 5000:
+			
+			self.gui.playSound()
+		
 			self.amountinpence *= 10
 			self.amountinpence += key
 		

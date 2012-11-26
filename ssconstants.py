@@ -27,3 +27,4 @@ class SSScreens:
 	
 class SSData:
 	ItemsFile = Constant("Item Filename", "items/items.xml")
+	

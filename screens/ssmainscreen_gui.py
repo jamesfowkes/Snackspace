@@ -184,7 +184,7 @@ class SSMainScreenGUI(SSScreenGUI):
 		
 		self.objects = {
 			self.DONE : LCARSCappedBar(self.Layout.getDoneRect(), CapLocation.CAP_LEFT + CapLocation.CAP_RIGHT, "Done", SS_FG, SS_BG, False),
-			self.PAY : LCARSCappedBar(self.Layout.getPayRect(), CapLocation.CAP_LEFT + CapLocation.CAP_RIGHT, "", SS_FG, SS_BG, False),
+			self.PAY : LCARSCappedBar(self.Layout.getPayRect(), CapLocation.CAP_LEFT + CapLocation.CAP_RIGHT, "Pay debt", SS_FG, SS_BG, False),
 			self.CANCEL : LCARSCappedBar(self.Layout.getCancelRect(), CapLocation.CAP_LEFT + CapLocation.CAP_RIGHT, "Cancel", SS_FG, SS_BG, True),
 			self.TOPBAR : LCARSCappedBar(self.Layout.getTopBarRect(), CapLocation.CAP_LEFT + CapLocation.CAP_RIGHT, "User: <No user scanned>", SS_FG, SS_BG, True),
 
@@ -258,7 +258,7 @@ class SSMainScreenGUI(SSScreenGUI):
 			for item in self.items:
 				if item.collideOnRemove(pos):
 					objectId = self.REMOVE
-				
+							
 		return objectId
 		
 	def barcodeFromButton(self, key):
@@ -271,10 +271,8 @@ class SSMainScreenGUI(SSScreenGUI):
 		
 	def setUser(self, name, balance):
 		if balance >= 0:
-			self.objects[self.PAY].setText("Add credit")
 			self.objects[self.TOPBAR].setText("Username: %s (Balance: \xA3%.2f)" % (name, balance/100))
 		else:
-			self.objects[self.PAY].setText("Pay debt")
 			self.objects[self.TOPBAR].setText("Username: %s (Balance: -\xA3%.2f)" % (name, -balance/100))
 				
 	def testDisplayUpButton(self):
@@ -343,7 +341,7 @@ class SSMainScreenGUI(SSScreenGUI):
 		]
 		
 		#Decide which objects should be shown
-		self.objects[self.PAY].visible = self.owner.isUserLogged()
+		self.objects[self.PAY].visible = self.owner.isUserLogged() and self.owner.isUserInDebt()
 		self.objects[self.DONE].visible = (len(self.items) > 0) and self.owner.isUserLogged()
 		self.objects[self.UP].visible = self.testDisplayUpButton()
 		self.objects[self.DOWN].visible = self.testDisplayDownButton()

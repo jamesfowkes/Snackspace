@@ -186,6 +186,12 @@ class SSMainScreen:
 	def isUserLogged(self):
 		return self.user.isValid()
 	
+	def isUserInDebt(self):
+		return self.user.getBalance() < 0
+	
+	def isUserInCredit(self):
+		return self.user.getBalance() >= 0
+	
 	def setVariables(self):
 		self.items = []
 		
@@ -218,6 +224,9 @@ class SSMainScreen:
 		button = self.gui.getObjectId( pos )
 		nextState = self.SM.state
 		
+		if button > -1:
+			self.gui.playSound()
+			
 		if (button == self.gui.DONE):
 			nextState = self.states.PAYING
 			self.user.charge(self.totalPrice())

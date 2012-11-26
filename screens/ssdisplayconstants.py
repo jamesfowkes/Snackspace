@@ -4,3 +4,5 @@ SS_SMALL_BAR = 30
 
 SS_BG = (0, 	0,	0)
 SS_FG = (40,	89,	45)
+
+SS_SOUNDFILE = "press_sound.wav"
