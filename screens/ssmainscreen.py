@@ -1,13 +1,8 @@
+import logging
 
-from ssconstants import SSRequests, SSScreens, SSData
-
-from ssitem import SSItem
-
-from xml.dom.minidom import parse
+from ssconstants import SSRequests, SSScreens
 
 from ssmainscreen_gui import SSMainScreenGUI
-
-from mydebug import debugPrint
 
 from enum import Enum
 
@@ -27,6 +22,7 @@ class SimpleStateMachine:
 		self.entries = entries
 		self.eventQueue = []
 		self.executing = False
+		self.logger = logging.getLogger("SimpleStateMachine")
 		
 	def onStateEvent(self, event):
 		
@@ -45,13 +41,13 @@ class SimpleStateMachine:
 			
 			oldState = self.state
 			
-			#Find entries for this state
+			# Find entries for this state
 			entries = [entry for entry in self.entries if entry.state == self.state]
 			
 			if len(entries) == 0:
 				raise self.StateNotFoundException("State %s not found" % self.state)
 			
-			#Find the handler for this event
+			# Find the handler for this event
 			try:
 				[handler] = [entry.handler for entry in entries if entry.event == event]
 			except ValueError:
@@ -62,7 +58,7 @@ class SimpleStateMachine:
 			if self.state is None:
 				raise self.BadHandlerException("Handler did not return next state")
 			
-			debugPrint("Got event %s in state %s, new state %s" % (event, oldState, self.state))
+			self.logger.info("Got event %s in state %s, new state %s" % (event, oldState, self.state))
 			
 		self.executing = False
 			
@@ -71,157 +67,135 @@ class SimpleStateMachineEntry:
 		self.state = state
 		self.event = event
 		self.handler = handler
-		
-class ItemQueryFunctions:
-	
-	def __init__(self, DescriptionQuery, PriceQuery, QuantityQuery, TotalPriceQuery):
-		self.Description = DescriptionQuery
-		self.Price = PriceQuery
-		self.Quantity = QuantityQuery
-		self.TotalPrice = TotalPriceQuery
-		
+			
 class SSMainScreen:
 
-	def __init__(self, width, height, user, callback):
+	def __init__(self, width, height, screenFuncs, userFuncs, itemFuncs):
 		
 		self.gui = SSMainScreenGUI(width, height, self)
 		
-		self.user = user
-		self.SSCallback = callback
+		self.__setConstants__()
+		self.__setVariables__()
 		
-		self.setConstants()
-		self.setVariables()
+		self.ItemFuncs = itemFuncs
+		self.ScreenFuncs = screenFuncs
+		self.UserFuncs = userFuncs
 		
-		self.itemData = parse(SSData.ItemsFile.value)
+	###
+	### Public Functions
+	###
 		
-		self.ItemQuery = ItemQueryFunctions(
-			self.descFromBarcode,
-			self.priceFromBarcode,
-			self.qtyFromBarcode,
-			self.totalPriceFromBarcode,
-			)
-		
-	def descFromBarcode(self, barcode):
-		
-		[desc] = [item.description for item in self.items if item.barcode == barcode]
-		return desc
-	
-	def priceFromBarcode(self, barcode):
-		
-		price = 0
-		for item in self.items:
-			if item.barcode == barcode:
-				price = item.priceinpence
-				break
-		return price
-	
-	def qtyFromBarcode(self, barcode):
-		
-		qty = 0
-		for item in self.items:
-			if item.barcode == barcode:
-				qty = item.count
-				break
-		return qty
-	
-	def totalPriceFromBarcode(self, barcode):
-		qty = 0
-		priceinpence = 0
-		for item in self.items:
-			if item.barcode == barcode:
-				qty = item.count
-				priceinpence = item.priceinpence
-				break
-		return qty * priceinpence
-	
-	def totalPrice(self):
-		return sum([item.count * item.priceinpence for item in self.items])
-	
-	def requestRedraw(self):
-		self.SSCallback(SSScreens.MAINSCREEN, SSRequests.MAIN, True)
-		return self.states.IDLE
-	
 	def draw(self, window):
-		debugPrint("Drawing self")
+		self.logger.info("Drawing self")
 		self.gui.draw(window)
-		self.SM.onStateEvent(self.events.REFRESHED)
 	
 	def clearAll(self):
-		self.items = []
+		self.logger.info("Clearing items")
+		
 		self.gui.clearItems()
-		self.user.forget()
+		self.gui.setUnknownUser()
+		
+		self.UserFuncs.Forget()
+		self.ItemFuncs.RemoveAll()
 			
-	def onGuiEvent(self, pos):
-	
+	def OnGuiEvent(self, pos):
+		
 		self.lastGuiPosition = pos
 		self.SM.onStateEvent(self.events.GUIEVENT)
 
-	def onScanEvent(self, barcode):
+	def OnScan(self, item):
 		
-		self.lastScan = barcode
+		self.newItem = item
 		self.SM.onStateEvent(self.events.SCAN)
 	
-	def onSwipeEvent(self, cardId):
-		self.lastCardId = cardId
-		self.SM.onStateEvent(self.events.SWIPE)
+	def OnBadScan(self, badcode):
+		self.badcode = badcode
+		self.SM.onStateEvent(self.events.BADSCAN)
 		
-	def onUserEvent(self, user):
+	def OnRFID(self):
+		self.SM.onStateEvent(self.events.RFID)
 	
-		if (user.isValid()):
-			self.gui.setUser(user.getName(), user.getBalance())		
-		else:
-			self.gui.setUnknownUser()
-		
-		self.SM.onStateEvent(self.events.USERUPDATED)	
-		
-	def getItemFromBarcode(self, barcode):
-		
+	def OnBadRFID(self):
+		self.SM.onStateEvent(self.events.BADRFID)
+	
+	def TotalPrice(self):
+		return self.__totalPrice__()
+	
+	def UserLogged(self):
+		return self.__isUserLogged__()
+	
+	def UserInDebt(self):
+		return self.__isUserInDebt__()
+	
+	###
+	### Private Functions
+	###
+	
+	def __totalPrice__(self):
+		return self.ItemFuncs.TotalPrice()
+	
+	def __requestRedraw__(self):
+		self.ScreenFuncs.RequestScreen(SSScreens.MAINSCREEN, SSRequests.MAIN, True)
+		return self.states.IDLE
+	
+	def __isUserLogged__(self):
+		return self.__user__()
+	
+	def __isUserInDebt__(self):
 		try:
-			[item] = [item for item in self.items if item.barcode == barcode]
-		except ValueError:
-			item = None
-			
-		return item
-		
-	def isUserLogged(self):
-		return self.user.isValid()
+			return self.__user__().getBalance() < 0
+		except AttributeError:
+			return True
 	
-	def isUserInDebt(self):
-		return self.user.getBalance() < 0
+	def __isUserInCredit__(self):
+		try:
+			return self.__user__().getBalance() >= 0
+		except AttributeError:
+			return False
 	
-	def isUserInCredit(self):
-		return self.user.getBalance() >= 0
-	
-	def setVariables(self):
-		self.items = []
+	def __setVariables__(self):
 		
 		self.SM = SimpleStateMachine(self.states.READY,
 		[
-			SimpleStateMachineEntry(self.states.READY, self.events.USERUPDATED,		self.requestRedraw),
-			SimpleStateMachineEntry(self.states.READY, self.events.SCAN,			self.onIdleScanEvent),
-			SimpleStateMachineEntry(self.states.READY, self.events.REFRESHED,		lambda: self.states.IDLE),
+			SimpleStateMachineEntry(self.states.READY, self.events.USERUPDATED, 	self.__requestRedraw__),
+			SimpleStateMachineEntry(self.states.READY, self.events.SCAN, 			self.__onIdleScanEvent__),
+			SimpleStateMachineEntry(self.states.READY, self.events.BADSCAN, 		self.__onIdleBadScanEvent__),
+			SimpleStateMachineEntry(self.states.READY, self.events.RFID, 			self.__onRFIDEvent__),
+			SimpleStateMachineEntry(self.states.READY, self.events.BADRFID, 		self.__onBadRFIDEvent__),
+						
+			SimpleStateMachineEntry(self.states.IDLE, self.events.GUIEVENT, 		self.__onIdleGuiEvent__),
+			SimpleStateMachineEntry(self.states.IDLE, self.events.SCAN, 			self.__onIdleScanEvent__),
+			SimpleStateMachineEntry(self.states.IDLE, self.events.BADSCAN, 			self.__onIdleBadScanEvent__),
+			SimpleStateMachineEntry(self.states.IDLE, self.events.RFID, 			self.__onRFIDEvent__),
+			SimpleStateMachineEntry(self.states.IDLE, self.events.BADRFID, 			self.__onBadRFIDEvent__),
+			SimpleStateMachineEntry(self.states.IDLE, self.events.ITEMUPDATED, 		self.__requestRedraw__),
+			SimpleStateMachineEntry(self.states.IDLE, self.events.USERUPDATED, 		self.__requestRedraw__),
+						
+			SimpleStateMachineEntry(self.states.NUMERIC, self.events.USERUPDATED, 	self.__requestRedraw__),
+						
+			SimpleStateMachineEntry(self.states.PAYING, self.events.USERUPDATED, 	self.__returnToIntro__),
 			
-			SimpleStateMachineEntry(self.states.IDLE, self.events.GUIEVENT,			self.onIdleGuiEvent),
-			SimpleStateMachineEntry(self.states.IDLE, self.events.SCAN,				self.onIdleScanEvent),
-			SimpleStateMachineEntry(self.states.IDLE, self.events.ITEMUPDATED,		self.requestRedraw),
-			SimpleStateMachineEntry(self.states.IDLE, self.events.USERUPDATED,		self.requestRedraw),
-			SimpleStateMachineEntry(self.states.IDLE, self.events.REFRESHED,		lambda: self.states.IDLE),
-			
-			SimpleStateMachineEntry(self.states.NUMERIC, self.events.USERUPDATED,	self.requestRedraw),
-			SimpleStateMachineEntry(self.states.NUMERIC, self.events.REFRESHED,		lambda: self.states.IDLE),
-			
-			SimpleStateMachineEntry(self.states.PAYING, self.events.USERUPDATED,	self.returnToIntro),
-		]
-		)
-		
-	def setConstants(self):
-		self.states = Enum(["READY", "IDLE", "NUMERIC", "PAYING"])
-		self.events = Enum(["GUIEVENT","SCAN", "USERUPDATED", "ITEMUPDATED", "REFRESHED"])
+			SimpleStateMachineEntry(self.states.WARNING, self.events.WARNTIMEOUT, 	self.__removeWarning__),
+			SimpleStateMachineEntry(self.states.WARNING, self.events.SCAN, 			self.__onIdleScanEvent__),
+			SimpleStateMachineEntry(self.states.WARNING, self.events.BADSCAN, 		self.__updateBarcodeWarning__),
+			SimpleStateMachineEntry(self.states.WARNING, self.events.BADRFID, 		self.__onBadRFIDEvent__),
+			SimpleStateMachineEntry(self.states.WARNING, self.events.USERUPDATED, 	self.__requestRedraw__),
+			SimpleStateMachineEntry(self.states.WARNING, self.events.GUIEVENT, 		self.__removeWarning__),
 
-	def onIdleGuiEvent(self):
+		])
+									
+		self.logger = logging.getLogger("MainScreen")
+		
+	def __setConstants__(self):
+		self.states = Enum(["READY", "IDLE", "NUMERIC", "PAYING", "WARNING"])
+		self.events = Enum(["GUIEVENT", "SCAN", "BADSCAN", "USERUPDATED", "RFID", "BADRFID", "ITEMUPDATED", "WARNTIMEOUT"])
+
+	def __onIdleGuiEvent__(self):
 		
 		pos = self.lastGuiPosition
-		button = self.gui.getObjectId( pos )
+		button = self.gui.getObjectId(pos)
+		
+		# Default to staying in same state
 		nextState = self.SM.state
 		
 		if button > -1:
@@ -229,67 +203,94 @@ class SSMainScreen:
 			
 		if (button == self.gui.DONE):
 			nextState = self.states.PAYING
-			self.user.charge(self.totalPrice())
+			self.UserFuncs.Charge(self.TotalPrice())
 			
 		if (button == self.gui.CANCEL):
-			nextState = self.returnToIntro()
+			nextState = self.__returnToIntro__()
 			
 		if (button == self.gui.PAY):
 			nextState = self.states.NUMERIC
-			self.SSCallback(SSScreens.MAINSCREEN, SSRequests.PAYMENT, False)
+			self.ScreenFuncs.RequestScreen(SSScreens.MAINSCREEN, SSRequests.PAYMENT, False)
 		
 		if (button == self.gui.DOWN):
 			self.gui.moveDown()
-			self.requestRedraw()
+			self.__requestRedraw__()
 			
 		if (button == self.gui.UP):
 			self.gui.moveUp()
-			self.requestRedraw()
+			self.__requestRedraw__()
 			
 		if (button == self.gui.REMOVE):
-			barcode = self.gui.getItemBarcodeAtPosition(pos)
+					
+			ssitem = self.gui.getItemAtPosition(pos)
+			self.logger.info("Removing item %s" % ssitem.Barcode)
 						
-			item = self.getItemFromBarcode(barcode)
-			
-			if item.count == 1:
-				debugPrint("Removing item %s" % item.barcode)
-				self.items.remove(item)
-				self.gui.removeItemAtPosition(pos)
-				
-			else:
-				debugPrint("Decrementing item %s" % item.barcode)
-				item.count -= 1
-				
-			self.requestRedraw()
+			if self.ItemFuncs.RemoveItem(ssitem) == 0:
+				# No items of this type left in list
+				self.gui.removeItem(ssitem)
+
+			self.__requestRedraw__()
 			
 		return nextState
 	
-	def onIdleScanEvent(self):
+	def __onIdleScanEvent__(self):
 		
-		debugPrint("Got barcode %s" % self.lastScan)
-		try:
-			[item] = [item for item in self.items if self.lastScan == item.barcode ]
-		except ValueError:
-			item = None #Barcode does not exist
+		self.logger.info("Got barcode %s" % self.newItem.Barcode)
+		
+		# Ensure that the warning banner goes away
+		self.gui.HideBanner()
+
+		self.gui.addDisplayItem(self.newItem)
+		self.__requestRedraw__()
 			
-		## If there is already an item with this barcode, increment count
-		if item is not None:
-			item.increment()
-		else:				
-			#New item
-			newItem = SSItem(self.itemData, self.lastScan)
+		self.newItem = None
 			
-			if newItem.isValid():
-				self.items.append(newItem)
-				self.gui.addItem(newItem.barcode)
-		
-		self.lastScan = 0
-		self.requestRedraw()	
-		
 		return self.states.IDLE
 	
-	def returnToIntro(self):
+	def __onIdleBadScanEvent__(self):
+		
+		self.logger.info("Got unrecognised barcode %s" % self.badcode)
+		self.gui.SetBannerWithTimeout("Unknown barcode: '%s'" % self.badcode, 4, self.__warningTimeout__)
+		self.__requestRedraw__()
+		self.badcode = ""
+		
+		return self.states.WARNING
+	
+	def __onRFIDEvent__(self):
+	
+		self.logger.info("Got user %s" % self.__user__().getName())
+		self.gui.HideBanner()
+		self.gui.setUser(self.__user__().getName(), self.__user__().getBalance())		
+		self.__requestRedraw__()
+		
+		return self.SM.state
+
+	def __onBadRFIDEvent__(self):
+	
+		self.gui.SetBannerWithTimeout("Unknown RFID card!", 4, self.__warningTimeout__)
+		
+		self.__requestRedraw__()
+		
+		return self.states.WARNING
+	
+	def __warningTimeout__(self):
+		self.SM.onStateEvent(self.events.WARNTIMEOUT)
+	
+	def __updateBarcodeWarning__(self):
+		self.logger.info("Got unrecognised barcode %s" % self.badcode)
+		self.gui.SetBannerWithTimeout("Unknown barcode: '%s'" % self.badcode, 4, self.__warningTimeout__)
+		self.__requestRedraw__()
+		return self.states.WARNING
+	
+	def __removeWarning__(self):
+		self.gui.HideBanner()
+		self.__requestRedraw__()
+		return self.states.IDLE
+		
+	def __returnToIntro__(self):
 		self.clearAll()
-		self.SSCallback(SSScreens.MAINSCREEN, SSRequests.INTRO, False)
+		self.ScreenFuncs.RequestScreen(SSScreens.MAINSCREEN, SSRequests.INTRO, False)
 		return self.states.READY
-			
+		
+	def __user__(self):
+		return self.UserFuncs.Get()

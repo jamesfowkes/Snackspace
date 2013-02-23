@@ -24,7 +24,5 @@ class SSScreens:
 	MAINSCREEN = Constant("MAINSCREEN", 1)
 	NUMERICENTRY = Constant("NUMERICENTRY", 2)
 	WAITING = Constant("WAITING", 3)
-	
-class SSData:
-	ItemsFile = Constant("Item Filename", "items/items.xml")
+
 	

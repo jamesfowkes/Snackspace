@@ -1,35 +1,48 @@
 class SSItem:
 		
-	def __init__(self, dom, barcode):
+	def __init__(self, barcode, description, priceinpence):
 		self.__valid = False
-		self.description = ''
-		self.priceinpence = 0
-		self.count = 0
+		self.__description = ''
+		self.__priceinpence = 0
+		self.__count = 0
 		
-		self.dom = dom
-		
-		self.barcode = barcode
-
-		items = self.dom.getElementsByTagName("item")
-		
-		for node in items:
-			barcodeNode = node.getElementsByTagName("barcode").item(0).firstChild
-			if barcodeNode.nodeValue == barcode:
-				self.description = node.getElementsByTagName("description").item(0).firstChild.nodeValue
-				self.priceinpence = int( node.getElementsByTagName("priceinpence").item(0).firstChild.nodeValue )
-				self.count = 1
-				self.__valid = True
+		self.__barcode = barcode
+		self.__description = description
+		self.__priceinpence = int(priceinpence)
+		self.__count = 1
+		self.__valid = True
 						
-	def increment(self):
+	def Increment(self):
 		if (self.__valid):
-			self.count += 1
+			self.__count += 1
 
-	def decrement(self):
+	def Decrement(self):
 		if (self.__valid):
-			if self.count > 1:
-				self.count -= 1	
+			if self.__count > 0:
+				self.__count -= 1	
+		
+		return self.__count
 	
-	def isValid(self):
+	@property
+	def Valid(self):
 		return self.__valid
-	def totalPrice(self):
-		return self.count * self.priceinpence
+		
+	@property
+	def Count(self):
+		return self.__count
+	
+	@property	
+	def PriceEach(self):
+		return self.__priceinpence
+	
+	@property	
+	def TotalPrice(self):
+		return self.__count * self.__priceinpence
+	
+	@property
+	def Barcode(self):
+		return self.__barcode
+	
+	@property	
+	def Description(self):
+		return self.__description

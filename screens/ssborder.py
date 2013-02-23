@@ -1,11 +1,11 @@
 import pygame
 
 ## Safe wild import: all constants, all start with SS_
-from ssdisplayconstants import *
+from ssdisplayconstants import * #@UnusedWildImport
 
-from lcarsgui.lcarstext import LCARSText, TextAlign
-from lcarsgui.lcarstlsweep import LCARSTLSweep
-from lcarsgui.lcarscappedbar import LCARSCappedBar, CapLocation
+from lcarstext import LCARSText, TextAlign
+from lcarstlsweep import LCARSTLSweep
+from lcarscappedbar import LCARSCappedBar, CapLocation
 
 ##
 ## Standard Border for all Snackspace LCARS screens
@@ -52,6 +52,9 @@ class SSBorder:
 	
 	def innerX(self):
 		return self.objects[self.SWEEP].l()
-		
+	
+	def b(self):
+		return self.objects[self.SWEEP].b()
+	
 	def getBorder(self):
 		return self.objects

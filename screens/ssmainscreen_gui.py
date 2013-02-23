@@ -1,16 +1,15 @@
 from __future__ import division
 
 import pygame
+import logging
 
-## Safe wild import: all constants, all start with SS_
-from ssdisplayconstants import * #@UnusedWildImport
+# # Safe wild import: all constants, all start with SS_
+from ssdisplayconstants import *  # @UnusedWildImport
 
-from lcarsgui.lcarscappedbar import LCARSCappedBar, CapLocation
+from lcarscappedbar import LCARSCappedBar, CapLocation
 
 from ssborder import SSBorder
 from ssscreen_gui import SSScreenGUI
-
-from mydebug import debugPrint
 
 class MainScreenLayout:
 	def __init__(self, width, height, border):
@@ -20,12 +19,12 @@ class MainScreenLayout:
 		self.largebuttonw = (self.buttonw * 2)
 		self.buttonh = 50
 		
-		## Spread buttons out between sweep and edge
-		self.donebuttonx	= border.innerX() + SS_BORDER
-		self.cancelbuttonx	= width - SS_BORDER - self.largebuttonw
-		self.paybuttonx		= (self.donebuttonx + self.cancelbuttonx) / 2
+		# # Spread buttons out between sweep and edge
+		self.donebuttonx	 = border.innerX() + SS_BORDER
+		self.cancelbuttonx	 = width - SS_BORDER - self.largebuttonw
+		self.paybuttonx		 = (self.donebuttonx + self.cancelbuttonx) / 2
 		
-		self.buttonsy = height - SS_BORDER - self.buttonh # Put buttons at bottom of screen
+		self.buttonsy = height - SS_BORDER - self.buttonh  # Put buttons at bottom of screen
 		
 		self.topbarx = border.innerX() + SS_BORDER
 		self.topbary = border.innerY() + SS_BORDER
@@ -82,18 +81,17 @@ class MainScreenLayout:
 		
 class SSDisplayItem():
 	
-	def __init__(self, barcode, itemQueryFuncs, visible = True):
+	def __init__(self, ssitem, visible=True):
 		
-		self.barcode = barcode
-		self.__visible = visible
-		self.ItemQuery = itemQueryFuncs
+		self.SnackspaceItem = ssitem
 		
 		self.descFormatPence = "%s (%dp)"
-		self.descFormatPounds = "%s (\xA3%.2f)"
+		self.descFormatPounds = u"%s (\xA3%.2f)"
 
 		self.priceFormatPence = "%dp"
 		self.priceFormatPounds = "\xA3%.2f"
 
+		self.logger = logging.getLogger("MainScreen.GUI.Item")
 		self.LCARSObjects = [None] * 3
 	
 	def collideOnRemove(self, pos):
@@ -103,21 +101,25 @@ class SSDisplayItem():
 		if self.__visible:
 			try:
 				collide = self.LCARSObjects[2].collidePoint(pos)
-			except AttributeError: #Off-screen items might not have GUI objects
+			except AttributeError:
+				# Off-screen items might not have GUI objects.
+				# This is OK.
 				pass
 
 		return collide
 	
 	def setVisible(self, visible):
+		self.logger.info("Setting item %s visibility to '%s'" % 
+			(self.SnackspaceItem.Description, "visible" if visible else "invisible"))
 		self.__visible = visible
 
 	def getVisible(self):
 		return self.__visible
 	
 	def updateStrings(self):
-		description = self.ItemQuery.Description(self.barcode)
-		priceinpence = self.ItemQuery.Price(self.barcode)
-		totalprice = self.ItemQuery.Quantity(self.barcode) * priceinpence
+		description = self.SnackspaceItem.Description
+		priceinpence = self.SnackspaceItem.PriceEach
+		totalprice = self.SnackspaceItem.TotalPrice
 		
 		self.description = self.formatDesciption(description, priceinpence)
 		self.priceString = self.formatPrice(totalprice)
@@ -142,27 +144,27 @@ class SSDisplayItem():
 	
 		self.updateStrings()
 		
-		#Redraw description bar
+		# Redraw description bar
 		self.LCARSObjects[0] = LCARSCappedBar(
-			pygame.Rect(Layout.descx, yPosition, Layout.descw, Layout.buttonh), 
+			pygame.Rect(Layout.descx, yPosition, Layout.descw, Layout.buttonh),
 			CapLocation.CAP_LEFT + CapLocation.CAP_RIGHT, self.description, SS_FG, SS_BG, self.__visible)
 		
 		self.LCARSObjects[0].draw(window)
 		
-		#Redraw total price bar
+		# Redraw total price bar
 		self.LCARSObjects[1] = LCARSCappedBar(
-			pygame.Rect(Layout.pricex, yPosition, Layout.pricew, Layout.buttonh), 
+			pygame.Rect(Layout.pricex, yPosition, Layout.pricew, Layout.buttonh),
 			CapLocation.CAP_LEFT + CapLocation.CAP_RIGHT, self.priceString, SS_FG, SS_BG, self.__visible)
 	
 		self.LCARSObjects[1].draw(window)
 	
 		# Redraw remove button
 		self.LCARSObjects[2] = LCARSCappedBar(
-			pygame.Rect(Layout.removex, yPosition, removeWidth, Layout.buttonh), 
+			pygame.Rect(Layout.removex, yPosition, removeWidth, Layout.buttonh),
 			CapLocation.CAP_LEFT + CapLocation.CAP_RIGHT, "Remove", SS_FG, SS_BG, self.__visible)
-
-		self.LCARSObjects[2].draw(window)
 		
+		self.LCARSObjects[2].draw(window)
+				
 class SSMainScreenGUI(SSScreenGUI):
 
 	def __init__(self, width, height, owner):
@@ -174,12 +176,12 @@ class SSMainScreenGUI(SSScreenGUI):
 		
 		self.setVariables()
 		
-		#Array of display items (NOT LCARS display objects)
-		self.items = []
+		# Array of SSDisplayItems
+		self.displayitems = []
 				
-		##
-		## Fixed position objects
-		##
+		# #
+		# # Fixed position objects
+		# #
 		self.Layout = MainScreenLayout(width, height, self.border)
 		
 		self.objects = {
@@ -194,9 +196,9 @@ class SSMainScreenGUI(SSScreenGUI):
 			self.AMOUNT: LCARSCappedBar(self.Layout.getAmountRect(), CapLocation.CAP_LEFT + CapLocation.CAP_RIGHT, "Total Spend: \xA30.00", SS_FG, SS_BG, True)
 		}
 	
-		##
-		## Import standard objects
-		##
+		# #
+		# # Import standard objects
+		# #
 		self.objects.update(self.border.getBorder());
 	
 	def setConstants(self):
@@ -216,29 +218,36 @@ class SSMainScreenGUI(SSScreenGUI):
 		self.objectsPerItemRow = 3
 	
 	def setVariables(self):
+		self.logger = logging.getLogger("MainScreen.GUI")
 		self.topItemIndex = 0
 		
-	def addItem(self, barcode):
-		self.items.append( SSDisplayItem(barcode, self.owner.ItemQuery, True) )	
+	def addDisplayItem(self, item):
+		
+		if item not in [displayitem.SnackspaceItem for displayitem in self.displayitems]:
+			self.displayitems.append(SSDisplayItem(item, True))	
 	
 	def updateTotal(self):
-		self.objects[self.AMOUNT].setText("Total Spend: \xA3%.2f" % (self.owner.totalPrice() / 100))
+		self.objects[self.AMOUNT].setText("Total Spend: \xA3%.2f" % (self.owner.TotalPrice() / 100))
 		
-	def getItemBarcodeAtPosition(self, pos):
-		item = next(item for item in self.items if item.collideOnRemove(pos))
-		return item.barcode
+	def getItemAtPosition(self, pos):
+		item = next((item.SnackspaceItem for item in self.displayitems if item.collideOnRemove(pos)), None)
+		return item
 	
-	def removeItemAtPosition(self, pos):
-		self.items = [item for item in self.items if not item.collideOnRemove(pos)]
-				
+	def removeItem(self, itemToRemove):
+		self.logger.debug("Removing item %s" % itemToRemove.Barcode)
+		self.displayitems = [item for item in self.displayitems if itemToRemove != item.SnackspaceItem]
+		
+		if self.topItemIndex > 0:
+			self.topItemIndex -= 1
+			
 	def moveUp(self):
-		debugPrint("Up pressed")
+		self.logger.debug("UP button pressed")
 		if self.topItemIndex > 0:
 			self.topItemIndex -= 1
 			
 	def moveDown(self):
-		debugPrint("Down pressed")
-		if (self.topItemIndex + self.maxScreenItems) < len(self.items):
+		self.logger.debug("DOWN button pressed")
+		if (self.topItemIndex + self.maxScreenItems) < len(self.displayitems):
 			self.topItemIndex += 1
 	
 	def removeButtonWidth(self):
@@ -254,35 +263,30 @@ class SSMainScreenGUI(SSScreenGUI):
 		objectId = SSScreenGUI.getObjectId(self, pos) 
 		
 		if objectId == -1:
-			#Try searching remove buttons
-			for item in self.items:
+			# Try searching remove buttons
+			for item in self.displayitems:
 				if item.collideOnRemove(pos):
 					objectId = self.REMOVE
 							
 		return objectId
-		
-	def barcodeFromButton(self, key):
-		for item in self.items:
-			if item.id == key:
-				return item.barcode
 	
 	def setUnknownUser(self):
 		self.objects[self.TOPBAR].setText("Username: <Unknown card>")
 		
 	def setUser(self, name, balance):
 		if balance >= 0:
-			self.objects[self.TOPBAR].setText("Username: %s (Balance: \xA3%.2f)" % (name, balance/100))
+			self.objects[self.TOPBAR].setText(u"Username: %s (Balance: \xA3%.2f)" % (name, balance / 100))
 		else:
-			self.objects[self.TOPBAR].setText("Username: %s (Balance: -\xA3%.2f)" % (name, -balance/100))
+			self.objects[self.TOPBAR].setText(u"Username: %s (Balance: -\xA3%.2f)" % (name, -balance / 100))
 				
 	def testDisplayUpButton(self):
 		return (self.topItemIndex > 0)
 	
 	def testDisplayDownButton(self):
-		return (self.topItemIndex + self.maxScreenItems) < len(self.items)
+		return (self.topItemIndex + self.maxScreenItems) < len(self.displayitems)
 	
 	def clearItems(self):
-		self.items = []
+		self.displayitems = []
 		self.topItemIndex = 0
 		
 	def draw(self, window):
@@ -298,25 +302,25 @@ class SSMainScreenGUI(SSScreenGUI):
 		
 		visibleCount = 0
 		
-		for (counter, item) in enumerate(self.items):
+		for (counter, item) in enumerate(self.displayitems):
 		
 			if (counter < self.topItemIndex):
-				#Hide all the items above the list item top
+				# Hide all the items above the list item top
 				item.setVisible(False)
 			elif visibleCount < self.maxScreenItems:
-				#Show screen items based on their quantity
+				# Show screen items based on their quantity
 				item.setVisible(True)
 				visibleCount += 1
 			else:
-				#Hide items below list bottom
+				# Hide items below list bottom
 				item.setVisible(False)
 				
 	def drawItems(self, window):
 	
 		yPosition = self.Layout.itemtopy
 		
-		#Iterate over all items in list
-		for item in self.items:
+		# Iterate over all items in list
+		for item in self.displayitems:
 			if item.getVisible():
 				item.draw(self.Layout, yPosition, self.removeButtonWidth(), window)
 				yPosition += self.Layout.buttonh + SS_BORDER
@@ -325,7 +329,7 @@ class SSMainScreenGUI(SSScreenGUI):
 		
 		self.updateTotal()
 		
-		## Draw border
+		# # Draw border
 		for drawObject in self.border.getBorder().values():		
 			drawObject.draw(window)
 		
@@ -340,12 +344,14 @@ class SSMainScreenGUI(SSScreenGUI):
 			self.objects[self.DOWN]
 		]
 		
-		#Decide which objects should be shown
-		self.objects[self.PAY].visible = self.owner.isUserLogged() and self.owner.isUserInDebt()
-		self.objects[self.DONE].visible = (len(self.items) > 0) and self.owner.isUserLogged()
+		# Decide which objects should be shown
+		self.objects[self.PAY].visible = self.owner.UserLogged() and self.owner.UserInDebt()
+		self.objects[self.DONE].visible = (len(self.displayitems) > 0) and self.owner.UserLogged()
 		self.objects[self.UP].visible = self.testDisplayUpButton()
 		self.objects[self.DOWN].visible = self.testDisplayDownButton()
 		
 		for staticObj in staticObjs:
 			staticObj.draw(window)
 		
+		if self.banner is not None:
+			self.banner.draw(window)

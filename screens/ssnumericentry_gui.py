@@ -5,7 +5,7 @@ import pygame
 ## Safe wild import: all constants, all start with SS_
 from ssdisplayconstants import * #@UnusedWildImport
 
-from lcarsgui.lcarscappedbar import LCARSCappedBar, CapLocation
+from lcarscappedbar import LCARSCappedBar, CapLocation
 
 from ssborder import SSBorder
 from ssscreen_gui import SSScreenGUI

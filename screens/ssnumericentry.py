@@ -6,14 +6,12 @@ from ssnumericentry_gui import SSNumericEntryGUI
 
 class SSNumericEntry:
 
-	def __init__(self, width, height, user, callback):
+	def __init__(self, width, height, screenFuncs, userFuncs):
 		
-		self.gui = SSNumericEntryGUI(width, height, self)
-		self.SSCallback = callback
-		
-		self.user = user
-		
+		self.gui = SSNumericEntryGUI(width, height, self)	
 		self.amountinpence = 0
+		self.ScreenFuncs = screenFuncs
+		self.UserFuncs = userFuncs
 		
 	def draw(self, window):
 		self.gui.draw(window)
@@ -42,7 +40,7 @@ class SSNumericEntry:
 	def setAmount(self, amount):
 		self.amountinpence = amount
 		self.gui.updateAmount(self.amountinpence)
-		self.SSCallback(SSScreens.NUMERICENTRY, SSRequests.PAYMENT, True)
+		self.ScreenFuncs.RequestScreen(SSScreens.NUMERICENTRY, SSRequests.PAYMENT, True)
 		
 	def newButtonPress(self, key):
 		
@@ -54,13 +52,13 @@ class SSNumericEntry:
 			self.amountinpence += key
 		
 			self.gui.updateAmount(self.amountinpence)
-			self.SSCallback(SSScreens.NUMERICENTRY, SSRequests.PAYMENT, True)
+			self.ScreenFuncs.RequestScreen(SSScreens.NUMERICENTRY, SSRequests.PAYMENT, True)
 		
 	def chargeAndExit(self):
-		self.user.charge(-self.amountinpence)
+		self.UserFuncs.Charge(-self.amountinpence)
 		self.exit()
 		
 	def exit(self):
 		self.setAmount(0)
-		self.SSCallback(SSScreens.NUMERICENTRY, SSRequests.MAIN, False)
+		self.ScreenFuncs.RequestScreen(SSScreens.NUMERICENTRY, SSRequests.MAIN, False)
 		
