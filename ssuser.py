@@ -1,17 +1,26 @@
 class SSUser:
 	
-	def __init__(self, username, balance, limit):
+	def __init__(self, rfid, username, balance, limit):
 		
 		self.__name = username
 		self.__balance = int(balance)
 		self.__limit = int(limit)
-				
-	def Charge(self, amountinpence, dbaccess):
-		dbaccess.chargeUser(amountinpence)
-		
+		self.__rfid = rfid
 	##
 	## Property getters
 	##
-	def getName(self): return self.__name
-	def getBalance(self): return self.__balance
-	def getLimit(self): return self.__limit
+	@property
+	def Name(self):
+		return self.__name
+	
+	@property
+	def Balance(self):
+		return self.__balance
+	
+	@property
+	def Limit(self):
+		return self.__limit
+	
+	@property
+	def RFID(self):
+		return self.__rfid

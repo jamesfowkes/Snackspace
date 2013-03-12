@@ -40,7 +40,7 @@ class Snackspace:
 	
 		self.UserFunctions = Bunch(
 			Get = lambda: self.user,
-			Charge = self.__ChargeUser__,
+			ChargeAll = self.__ChargeAll__,
 			Forget = self.__ForgetUser__
 			)
 		
@@ -108,7 +108,7 @@ class Snackspace:
 		
 		if userdata is not None:
 			self.user = SSUser(*userdata)
-			self.logger.info("Got user %s" % self.user.getName())
+			self.logger.info("Got user %s" % self.user.Name)
 		else:
 			self.logger.info("Bad RFID %s" % cardnumber)
 						
@@ -175,11 +175,12 @@ class Snackspace:
 		elif request == SSRequests.INTRO:
 			self.__setScreen__(SSScreens.INTROSCREEN, force)
 	
-	def __ChargeUser__(self, totalinpence):
+	def __ChargeAll__(self):
 		if self.user is not None:
-			return self.user.Charge(totalinpence, self.dbaccess)
+			items = [(item.Barcode, item.Count) for item in self.items]
+			return self.dbaccess.SendTransactions(items, self.user.RFID)
 		else:
-			return None
+			return False
 		
 	def __ForgetUser__(self):
 		self.user = None

@@ -42,7 +42,7 @@ class SSScreenGUI:
 	def playSound(self):
 		self.sound.play()
 		
-	def SetBannerWithTimeout(self, text, timeout, callback):
+	def SetBannerWithTimeout(self, text, timeout, colour, callback):
 		
 		try:
 			self.timer.cancel()
@@ -50,10 +50,11 @@ class SSScreenGUI:
 			pass
 		
 		self.banner = LCARSCappedBar(pygame.Rect(self.w * 0.2, self.h / 2, self.w * 0.6, SS_LARGE_BAR),
-			CapLocation.CAP_RIGHT + CapLocation.CAP_LEFT, text, SS_WARNING_FG, SS_BG , True)
+			CapLocation.CAP_RIGHT + CapLocation.CAP_LEFT, text, colour, SS_BG , True)
 		
-		self.timer = Timer(timeout, callback)
-		self.timer.start()
+		if timeout > 0:
+			self.timer = Timer(timeout, callback)
+			self.timer.start()
 
 	def HideBanner(self, redrawnow = False):
 		try:

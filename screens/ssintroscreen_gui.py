@@ -37,7 +37,8 @@ class SSIntroScreenGUI(SSScreenGUI):
 		##
 		
 		self.setIntroText("Scan an item or swipe your card to start", SS_FG)
-		self.setIntroText2("Don't have a card? Pop money in the pot instead!", SS_FG)
+		self.setIntroText2("Don't have a card? Seeing error messages?", SS_FG)
+		self.setIntroText3("Pop money in the pot instead!", SS_FG)
 			
 	def setIntroText(self, text, color):
 		## The intro text is positioned centrally between the sweep and image
@@ -54,7 +55,15 @@ class SSIntroScreenGUI(SSScreenGUI):
 			text,
 			36,
 			TextAlign.XALIGN_CENTRE, color, SS_BG, True)
-			
+		
+	def setIntroText3(self, text, color):
+		## The intro text is positioned between the image and the base
+		textYPosition = self.objects['introtext2'].t() + 50
+		self.objects['introtext3'] = LCARSText((self.w/2, textYPosition), 
+			text,
+			36,
+			TextAlign.XALIGN_CENTRE, color, SS_BG, True)
+					
 	def draw(self, window):
 		window.fill(SS_BG)
 	
@@ -64,6 +73,7 @@ class SSIntroScreenGUI(SSScreenGUI):
 		#Ensure text is drawn on top
 		self.objects['introtext'].draw(window)
 		self.objects['introtext2'].draw(window)
+		self.objects['introtext3'].draw(window)
 		
 		pygame.display.flip()
 		
