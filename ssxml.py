@@ -31,11 +31,19 @@ class InputException(Exception):
 
 class SSMessage:
 
-	def __init__(self, actions = {}, debugme = False):
+	def __init__(self, action = None, data = None, debugme = False):
 		self.debugme = debugme
 		self.Clear()
-		self.__actions = actions.copy()
-						
+		self.__actions = {}
+		
+		if action is not None:
+			self.__actions[action] = None
+			if data is not None:
+				if isinstance(data, dict):
+					self.__actions[action] = [data.copy()]
+				elif isinstance(data, list):
+					self.__actions[action] = list(data)
+		
 	def AddAction(self, action, data_dict):
 		try:
 			self.__actions[action].append(data_dict.copy())
@@ -76,17 +84,20 @@ class SSMessage:
 		## datalist is expected to be a list of dictionaries (key-value pairs)
 		## e.g. [ {'barcode':12345}, {'barcode':67890} ]
 	
-		for datapoint in datalist:
-			for datatype, data in datapoint.iteritems():
-		
-				## Add these dictionary items to the DOM node.
-				## For example, a {'barcode':12345} dictionary entry
-				## becomes <barcode>12345</barcode>
-				data_element = self.doc.createElement(datatype)
-				text_node = self.doc.createTextNode(str(data))
-				data_element.appendChild(text_node)
-				action_node.appendChild(data_element)
-				
+		try:
+			for datapoint in datalist:
+				for datatype, data in datapoint.iteritems():
+			
+					## Add these dictionary items to the DOM node.
+					## For example, a {'barcode':12345} dictionary entry
+					## becomes <barcode>12345</barcode>
+					data_element = self.doc.createElement(datatype)
+					text_node = self.doc.createTextNode(str(data))
+					data_element.appendChild(text_node)
+					action_node.appendChild(data_element)
+		except TypeError:
+			pass #datalist might be None - this is fine
+			
 	@staticmethod
 	def ParseXML(xml, debugme = False):
 		if len(xml):

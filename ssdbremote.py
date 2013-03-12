@@ -27,7 +27,7 @@ class SSDbRemote:
 	#	callback(reply, received, self.__connected)
 	
 	def GetItem(self, barcode):
-		message = SSMessage({"getitem":{"barcode":barcode}}, True).GetXML()
+		message = SSMessage("getitem",{"barcode":barcode}, True).GetXML()
 		try:
 			reply, _recvd = self.__send(message)
 			reply = SSMessage.ParseXML(reply)
@@ -76,7 +76,7 @@ class SSDbRemote:
 			raise
 		
 	def AddItem(self, barcode, description, priceinpence):
-		message = SSMessage({"additem":{"barcode":barcode, "description":description, "priceinpence":priceinpence}}, True).GetXML()
+		message = SSMessage("additem", [{"barcode":barcode},{"description":description},{"priceinpence":priceinpence}], True).GetXML()
 		try:
 			reply, _recvd = self.__send(message)
 			reply = SSMessage.ParseXML(reply)
@@ -84,7 +84,7 @@ class SSDbRemote:
 			return None
 		
 	def AddCredit(self, rfid, amountinpence):
-		message = SSMessage({"getitem":{"rfid":rfid, "amountinpence":amountinpence}}, True).GetXML()
+		message = SSMessage("getitem", [{"rfid":rfid}, {"amountinpence":amountinpence}], True).GetXML()
 		try:
 			reply, _recvd = self.__send(message)
 			reply = SSMessage.ParseXML(reply)
@@ -114,7 +114,7 @@ class SSDbRemote:
 		## Assume we are connected initially
 		## to let __send method work
 		self.__foundServer = True
-		message = SSMessage({"ping":{}})
+		message = SSMessage("ping")
 		reply, received = self.__send(message.GetXML())
 		
 		if received > 0:
@@ -185,7 +185,7 @@ class SSDbRemote:
 			actiontype = action.attributes.getNamedItem("type").value
 				
 			if actiontype == "ping":
-				return SSMessage({"pingreply": ""})
+				return SSMessage("pingreply")
 	
 	def __transactionsSuccessful(self, reply):
 		

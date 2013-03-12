@@ -42,9 +42,12 @@ class SSServer:
 				data = connection.recv(length)
 				returndata = self.HandleMessage(data, db)
 				if (returndata is not None):
+					
+					self.logger.info("Sending %s" % returndata)
+					
 					length = len(returndata)
 					returndata = "%5s%s" % (length, returndata)
-					self.logger.info("Sending %d bytes" % length)
+					
 					connection.sendall(returndata)
 			finally:
 				connection.close()
@@ -59,7 +62,7 @@ class SSServer:
 			self.logger.info("Handling '%s' action..." % action)
 			
 			if action == "ping":
-				reply = SSMessage({"pingreply":{}}).GetXML()
+				reply = SSMessage("pingreply").GetXML()
 			elif action == "getitem":
 				reply = db.GetItem(data)
 			elif action == "getuser":

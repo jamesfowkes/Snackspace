@@ -48,14 +48,12 @@ class SSDbLocal:
 		###########################################################
 		### FAKE DB ACCESS										###
 		###########################################################
-		data = 	{
-					'itemdata':
-					{
-						'barcode': '0',
-						'description': '',
-						'priceinpence':'0'
-					}
-				}
+		datatype = 'itemdata'
+		data = 	[
+					{'barcode': '0'},
+					{'description': ''},
+					{'priceinpence':'0'}
+				]
 
 		dom = parse("data/data.xml")
 	
@@ -63,14 +61,14 @@ class SSDbLocal:
 		
 		for item in items:
 			if item.getElementsByTagName('barcode')[0].childNodes[0].nodeValue == barcode:
-				data['itemdata']['barcode'] = barcode
-				data['itemdata']['description'] = item.getElementsByTagName('description')[0].childNodes[0].nodeValue
-				data['itemdata']['priceinpence'] = item.getElementsByTagName('priceinpence')[0].childNodes[0].nodeValue
+				data[0]['barcode'] = barcode
+				data[1]['description'] = item.getElementsByTagName('description')[0].childNodes[0].nodeValue
+				data[2]['priceinpence'] = item.getElementsByTagName('priceinpence')[0].childNodes[0].nodeValue
 				
 		###########################################################
 		### END FAKE DB ACCESS									###
 		###########################################################
-		xml = SSMessage(data).GetXML()
+		xml = SSMessage(datatype, data).GetXML()
 		
 		return xml
 	
@@ -80,15 +78,13 @@ class SSDbLocal:
 		###########################################################
 		### FAKE DB ACCESS										###
 		###########################################################
-		data = 	{
-					'userdata':
-					{
-						'rfid': '0',
-						'username': '',
-						'balance':'0',
-						'limit':'0'
-					}
-				}
+		datatype = 'userdata'
+		data = 	[
+					{'rfid': '0'},
+					{'username': ''},
+					{'balance':'0'},
+					{'limit':'0'}
+				]
 
 		dom = parse("data/data.xml")
 	
@@ -96,16 +92,15 @@ class SSDbLocal:
 		
 		for user in users:
 			if user.getElementsByTagName('rfid')[0].childNodes[0].nodeValue == rfid:
-				
-				data['userdata']['rfid'] = rfid
-				data['userdata']['username'] = user.getElementsByTagName('username')[0].childNodes[0].nodeValue
-				data['userdata']['balance'] = user.getElementsByTagName('balance')[0].childNodes[0].nodeValue
-				data['userdata']['limit'] = user.getElementsByTagName('limit')[0].childNodes[0].nodeValue
+				data[0]['rfid'] = rfid
+				data[1]['username'] = user.getElementsByTagName('username')[0].childNodes[0].nodeValue
+				data[2]['balance'] = user.getElementsByTagName('balance')[0].childNodes[0].nodeValue
+				data[3]['limit'] = user.getElementsByTagName('limit')[0].childNodes[0].nodeValue
 				
 		###########################################################
 		### END FAKE DB ACCESS									###
 		###########################################################
-		xml = SSMessage(data).GetXML()
+		xml = SSMessage(datatype, data).GetXML()
 		
 		return xml
 	
