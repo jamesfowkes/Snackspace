@@ -1,11 +1,11 @@
 class SSUser:
 	
-	def __init__(self, rfid, username, balance, limit):
+	def __init__(self, member_id, username, balance, limit):
 		
 		self.__name = username
 		self.__balance = int(balance)
 		self.__limit = int(limit)
-		self.__rfid = rfid
+		self.__memberID = member_id
 	##
 	## Property getters
 	##
@@ -22,5 +22,5 @@ class SSUser:
 		return self.__limit
 	
 	@property
-	def RFID(self):
-		return self.__rfid
+	def MemberID(self):
+		return self.__memberID

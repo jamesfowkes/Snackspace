@@ -10,40 +10,50 @@ class SSNumericEntry:
 		
 		self.gui = SSNumericEntryGUI(width, height, self)	
 		self.amountinpence = 0
+		self.presetAmount = False
+	
 		self.ScreenFuncs = screenFuncs
 		self.UserFuncs = userFuncs
 		
 	def draw(self, window):
 		self.gui.draw(window)
 	
-	def onGuiEvent(self, pos):
+	def OnGuiEvent(self, pos):
 	
 		button = self.gui.getObjectId(pos)
 		
 		if button >= self.gui.KEY0 and button <= self.gui.KEY9:
 			#Let button press decide whether to play sound or not
-			self.newButtonPress(button)
+			self.__newButtonPress(button)
 		else:
 			#Play sound unconditionally for other buttons
 			self.gui.playSound()
 			if button == self.gui.FIVEPOUNDS:
-				self.setAmount(500)
+				self.presetAmount = True
+				self.__setAmount(500)
 			elif button == self.gui.TENPOUNDS:
-				self.setAmount(1000)
+				self.presetAmount = True
+				self.__setAmount(1000)
 			elif button == self.gui.TWENTYPOUNDS:
-				self.setAmount(2000)
+				self.presetAmount = True
+				self.__setAmount(2000)
 			elif button == self.gui.DONE:
-				self.chargeAndExit()
+				self.__chargeAndExit()
 			elif button == self.gui.CANCEL:
-				self.exit()
+				self.__exit()
 
-	def setAmount(self, amount):
+	def __setAmount(self, amount):
 		self.amountinpence = amount
 		self.gui.updateAmount(self.amountinpence)
 		self.ScreenFuncs.RequestScreen(SSScreens.NUMERICENTRY, SSRequests.PAYMENT, True)
 		
-	def newButtonPress(self, key):
+	def __newButtonPress(self, key):
 		
+		if self.presetAmount:
+			## Clear the preset amount and assume starting from scratch
+			self.presetAmount = False
+			self.amountinpence = 0
+			
 		if ((self.amountinpence * 10) + key) <= 5000:
 			
 			self.gui.playSound()
@@ -54,11 +64,11 @@ class SSNumericEntry:
 			self.gui.updateAmount(self.amountinpence)
 			self.ScreenFuncs.RequestScreen(SSScreens.NUMERICENTRY, SSRequests.PAYMENT, True)
 		
-	def chargeAndExit(self):
-		self.UserFuncs.Charge(-self.amountinpence)
-		self.exit()
+	def __chargeAndExit(self):
+		self.UserFuncs.CreditUser(self.amountinpence)
+		self.__exit()
 		
-	def exit(self):
+	def __exit(self):
 		self.setAmount(0)
 		self.ScreenFuncs.RequestScreen(SSScreens.NUMERICENTRY, SSRequests.MAIN, False)
 		

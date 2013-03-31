@@ -164,13 +164,14 @@ class SSMainScreen:
 	
 	def __setVariables__(self):
 		
-		self.SM = SimpleStateMachine(self.states.READY,
+		self.SM = SimpleStateMachine(self.states.INACTIVE,
 		[
-			SimpleStateMachineEntry(self.states.READY, self.events.SCAN, 			self.__onIdleScanEvent__),
-			SimpleStateMachineEntry(self.states.READY, self.events.BADSCAN, 		self.__onIdleBadScanEvent__),
-			SimpleStateMachineEntry(self.states.READY, self.events.RFID, 			self.__onRFIDEvent__),
-			SimpleStateMachineEntry(self.states.READY, self.events.BADRFID, 		self.__onBadRFIDEvent__),
-						
+			SimpleStateMachineEntry(self.states.INACTIVE, self.events.SCAN, 		self.__onIdleScanEvent__),
+			SimpleStateMachineEntry(self.states.INACTIVE, self.events.BADSCAN, 		self.__onIdleBadScanEvent__),
+			SimpleStateMachineEntry(self.states.INACTIVE, self.events.RFID, 		self.__onRFIDEvent__),
+			SimpleStateMachineEntry(self.states.INACTIVE, self.events.BADRFID, 		self.__onBadRFIDEvent__),
+			SimpleStateMachineEntry(self.states.INACTIVE, self.events.GUIEVENT, 	self.__onIdleGuiEvent__),
+			
 			SimpleStateMachineEntry(self.states.IDLE, self.events.GUIEVENT, 		self.__onIdleGuiEvent__),
 			SimpleStateMachineEntry(self.states.IDLE, self.events.SCAN, 			self.__onIdleScanEvent__),
 			SimpleStateMachineEntry(self.states.IDLE, self.events.BADSCAN, 			self.__onIdleBadScanEvent__),
@@ -194,7 +195,7 @@ class SSMainScreen:
 		self.acceptInput = True
 		
 	def __setConstants__(self):
-		self.states = Enum(["READY", "IDLE", "NUMERIC", "PAYMENTMESSAGE", "WARNING"])
+		self.states = Enum(["INACTIVE", "IDLE", "NUMERIC", "PAYMENTMESSAGE", "WARNING"])
 		self.events = Enum(["GUIEVENT", "SCAN", "BADSCAN", "RFID", "BADRFID", "ITEMUPDATED", "BANNERTIMEOUT"])
 
 	def __onIdleGuiEvent__(self):
@@ -296,7 +297,7 @@ class SSMainScreen:
 	def __returnToIntro__(self):
 		self.clearAll()
 		self.ScreenFuncs.RequestScreen(SSScreens.MAINSCREEN, SSRequests.INTRO, False)
-		return self.states.READY
+		return self.states.INACTIVE
 	
 	def __chargeUser__(self):
 		self.acceptInput = False

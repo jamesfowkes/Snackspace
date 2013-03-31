@@ -50,22 +50,23 @@ class SSDbRemote:
 			username = reply['userdata']['username']
 			balance = reply['userdata']['balance']
 			limit = reply['userdata']['limit']
+			memberID = reply['userdata']['memberid']
 			
 			self.logger.info("Got user %s" % username)
 			
-			return (rfid, username, balance, limit)
+			return (memberID, username, balance, limit)
 
 		except:
 			pass
 		
-	def SendTransactions(self, itemdata, rfid):
+	def SendTransactions(self, itemdata, memberID):
 		
 		self.logger.info("Sending transactions")
 		
 		message = SSMessage()
 		
 		for (barcode, count) in itemdata:
-			message.AddAction("transactions", {"barcode":barcode,"rfid":rfid, "count":count})
+			message.AddAction("transactions", {"barcode":barcode,"memberID":memberID, "count":count})
 		
 		try:
 			reply, _recvd = self.__send(message.GetXML())
@@ -83,8 +84,8 @@ class SSDbRemote:
 		except:
 			return None
 		
-	def AddCredit(self, rfid, amountinpence):
-		message = SSMessage("getitem", [{"rfid":rfid}, {"amountinpence":amountinpence}], True).GetXML()
+	def AddCredit(self, memberID, amountinpence):
+		message = SSMessage("getitem", [{"memberID":memberID}, {"amountinpence":amountinpence}], True).GetXML()
 		try:
 			reply, _recvd = self.__send(message)
 			reply = SSMessage.ParseXML(reply)
@@ -192,8 +193,7 @@ class SSDbRemote:
 		transactions = reply['transactions']
 		for transaction in transactions.iteritems():
 			print transaction['result']
-			 
-		#print results	
+			
 		return True
 		
 	##

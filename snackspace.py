@@ -7,6 +7,8 @@ import logging
 
 import time
 
+from rfid import RFIDReader
+
 from bunch import Bunch
 
 from ssconstants import SSRequests, SSScreens
@@ -41,6 +43,7 @@ class Snackspace:
 		self.UserFunctions = Bunch(
 			Get = lambda: self.user,
 			ChargeAll = self.__ChargeAll__,
+			PayDebt = self.__CreditUser__,
 			Forget = self.__ForgetUser__
 			)
 		
@@ -75,6 +78,9 @@ class Snackspace:
 			self.screens[SSScreens.INTROSCREEN.value].acceptGUIEvents = True
 		
 	def StartEventLoop(self):
+		
+		ticks = 0
+		
 		while (1):
 			for event in pygame.event.get():
 				if event.type == pygame.QUIT: sys.exit()
@@ -84,22 +90,33 @@ class Snackspace:
 						self.screens[self.currentscreen.value].OnGuiEvent(event.pos)
 					except AttributeError:  # Screen does not handle Gui events
 						if "OnGuiEvent" in dir(self.screens[self.currentscreen.value]):
-							raise  # # Only raise error if the onScanEvent method exists
+							raise  # # Only raise error if the OnGuiEvent method exists
 				if event.type == pygame.KEYDOWN:
 					self.__inputHandler__(event)
-
+			
+			if (pygame.time.get_ticks() - ticks) > 1000:
+				ticks = pygame.time.get_ticks()
+				rfid = self.rfid.PollForCardID()
+				if len(rfid):
+					self.__onSwipeEvent__(self.__mangleRFID__(rfid))
+	
+	def __mangleRFID__(self, rfid):
+		
+		mangled = ""
+		
+		for byte in rfid:
+			mangled += "%02X" % byte
+			
+		print mangled
+		return mangled 
+		
 	def __inputHandler__(self, event):
 		if (event.key in self.validKeys):
 			self.scannedinput += event.dict['unicode']
 		elif (event.key == pygame.K_RETURN):
 			
 			self.logger.info("Got raw input '%s'" % self.scannedinput)
-			if (self.scannedinput == "4574"):
-				self.__onSwipeEvent__(4574)
-			elif (self.scannedinput == "123"):
-				self.__onSwipeEvent__(123)
-			else:
-				self.__onScanEvent__(self.scannedinput)
+			self.__onScanEvent__(self.scannedinput)
 			
 			self.scannedinput = ''
 					
@@ -164,6 +181,8 @@ class Snackspace:
 		
 		self.logger = logging.getLogger("snackspace")
 		
+		self.rfid = RFIDReader();
+		
 		self.user = None
 		self.items = []
 		
@@ -178,10 +197,13 @@ class Snackspace:
 	def __ChargeAll__(self):
 		if self.user is not None:
 			items = [(item.Barcode, item.Count) for item in self.items]
-			return self.dbaccess.SendTransactions(items, self.user.RFID)
+			return self.dbaccess.SendTransactions(items, self.user.MemberID)
 		else:
 			return False
 		
+	def __CreditUser__(self, amount):
+		self.dbaccess.AddCredit(self.user.MemberID, amount)
+	
 	def __ForgetUser__(self):
 		self.user = None
 					

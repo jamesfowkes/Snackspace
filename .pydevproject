@@ -4,8 +4,9 @@
 <pydev_project>
 <pydev_pathproperty name="org.python.pydev.PROJECT_SOURCE_PATH">
 <path>/Snackspace</path>
-<path>/Snackspace/data</path>
 <path>/Snackspace/screens</path>
+<path>/Snackspace/server</path>
+<path>/Snackspace/server/data</path>
 </pydev_pathproperty>
 <pydev_property name="org.python.pydev.PYTHON_PROJECT_VERSION">python 2.7</pydev_property>
 <pydev_property name="org.python.pydev.PYTHON_PROJECT_INTERPRETER">Default</pydev_property>

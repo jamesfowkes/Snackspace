@@ -85,16 +85,12 @@ def main(argv = None):
 	
 	parser = argparse.ArgumentParser(description='Snackspace Server')
 	parser.add_argument('-L', dest='localmode', nargs='?',default='n', const='y')
-	
-	args = parser.parse_args()
-	
-	db = SSDbLocal();
-	
-	if args.localmode == 'y':
-		__server = SSServer(True, db)
-	else:
-		__server = SSServer(False, db)
 		
+	args = parser.parse_args()
+
+	db = SSDbLocal(args.localmode == 'y');
+	__server = SSServer(args.localmode == 'y', db)
+
 	
 if __name__ == "__main__":
 	main()
