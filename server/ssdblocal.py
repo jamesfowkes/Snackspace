@@ -1,6 +1,4 @@
-from ssxml import SSMessage
-
-from xml.dom.minidom import parse
+from ssxml import SSMessage, SSAction
 
 import logging
 
@@ -17,8 +15,38 @@ class SSDbLocal:
 		logging.basicConfig(level=logging.DEBUG)
 		self.logger = logging.getLogger("LocalDB")
 		
+		self.pendingActions = []
+		
 		self.db = db(self.useTestDb)
 
+	def ProcessActions(self, actions):
+		
+		reply = SSMessage()
+		
+		for action in actions:
+			
+			self.logger.info("Handling '%s' action..." % action.Action)
+			
+			if action.Action == "ping":
+				reply.AddAction( SSAction("pingreply") )
+			elif action.Action == "getitem":
+				reply.AddAction( self.GetItem(action.Data) )
+			elif action.Action == "getuser":
+				reply.AddAction( self.GetUser(action.Data) )
+			elif action.Action == "transaction":
+				reply.AddAction( self.ApplyTransaction(action.Data) )
+			elif action.Action == "additem":
+				reply.AddAction ( self.AddItem(action.Data) )
+			elif action.Action == "addcredit":
+				reply.AddAction( self.AddCredit(action.Data) )
+			elif action.Action == "pingreply":
+				pass # No action required for ping reply
+			else:
+				self.logger.warning("Unknown action '%s'" % action.Action)
+		
+		self.actions = []
+		
+		return reply.GetXML()
 		
 	def GetItem(self, data):
 		barcode = data['barcode']
@@ -34,14 +62,6 @@ class SSDbLocal:
 		
 		return self.__userFromRFID(rfid) 
 	
-	def ApplyTransactions(self, data):
-		rfids = data['rfid']
-		barcodes = data['barcode']
-		
-		self.logger.info("Applying transactions")
-		
-		return self.__ApplyTransactions(rfids, barcodes)
-	
 	def AddItem(self, barcode):
 		self.logger.info("Adding new item %s" % barcode)
 
@@ -52,61 +72,47 @@ class SSDbLocal:
 	def __itemFromBarcode(self, barcode):
 		
 		datatype = 'itemdata'
-		data = 	[
-					{'barcode': '0'},
-					{'description': ''},
-					{'priceinpence':'0'}
-				]
+		data = 	{'barcode': '0', 'description': '', 'priceinpence':'0'}
 
 		result = self.db.GetItem(barcode)
 		
 		if result is not None:
-			data[0]['barcode'] = result['barcode']
-			data[1]['description'] = result['shortdesc']
-			data[2]['priceinpence'] = result['price']
-				
-		xml = SSMessage(datatype, data).GetXML()
+			data['barcode'] = result['barcode']
+			data['description'] = result['shortdesc']
+			data['priceinpence'] = result['price']
 		
-		return xml
+		action = SSAction(datatype, data)
+	
+		return action
 	
 	
 	def __userFromRFID(self, rfid):
 		
 		datatype = 'userdata'
-		data = 	[
-					{'memberid': '0'},
-					{'username': ''},
-					{'balance':'0'},
-					{'limit':'0'}
-				]
+		data = 	{'memberid': '0', 'username': '', 'balance':'0','limit':'0'}
 
 		result = self.db.GetUser(rfid)
 		
 		if result is not None:
-			data[0]['memberid'] = result['memberid']
-			data[1]['username'] = result['username']
-			data[2]['balance'] = result['balance']
-			data[3]['limit'] = result['limit']
+			data['memberid'] = result['memberid']
+			data['username'] = result['username']
+			data['balance'] = result['balance']
+			data['limit'] = result['limit']
 				
-		xml = SSMessage(datatype, data).GetXML()
-		
-		return xml
+		action = SSAction(datatype, data)
+			
+		return action
 	
 
-	def __ApplyTransactions(self, memberid, barcodes):
+	def ApplyTransaction(self, data):
 		
-		###########################################################
-		### FAKE DB ACCESS										###
-		###########################################################
-
-		###########################################################
-		### END FAKE DB ACCESS									###
-		###########################################################	
+		memberid = data['memberid']
+		barcode = data['barcode']
+		count = data['count']
 		
-		reply = SSMessage()
+		result = self.db.Transaction(memberid, barcode, count)
 		
-		for barcode in barcodes:
-			reply.AddAction("transaction", {"barcode":barcode, "result":"1"})
-		
-		return reply.GetXML()
+		action = SSAction("transaction", {"barcode":barcode, "result":"YES!", "memberid":memberid})
+			
+		return action
 

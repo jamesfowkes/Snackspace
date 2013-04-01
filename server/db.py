@@ -5,7 +5,7 @@ import re
 
 testDbPath = "server/data/test.db"
 testDataPath = "server/data/test_data.sql"
- 
+
 onlineSqlUrl = 'https://nottinghack-instrumentation.googlecode.com/svn/db/'
 
 #List of tables that the Snackspace application needs
@@ -63,6 +63,19 @@ class db:
 		except:
 			result = None
 	
+		return result
+	
+	def Transaction(self, memberid, barcode, count):
+		
+		try:
+			item_data = self.db.products.filter(self.db.products.barcode==barcode).one()
+			user_data = self.db.users.filter(self.db.users.member_id == memberid).one()
+			
+			user_data.balance = user_data.balance - (item_data.price * count)
+			
+		except:
+			result = None
+		
 		return result
 	
 	def __createTestDb(self):

@@ -3,7 +3,7 @@ import logging
 
 import signal
 
-from ssxml import SSMessage
+from ssxml import SSMessage, SSAction
 
 from xml.dom.minidom import parseString
 
@@ -27,34 +27,45 @@ class SSDbRemote:
 	#	callback(reply, received, self.__connected)
 	
 	def GetItem(self, barcode):
-		message = SSMessage("getitem",{"barcode":barcode}, True).GetXML()
+		action = SSAction("getitem", {"barcode":barcode})
+		message = SSMessage(action).GetXML()
 		try:
 			reply, _recvd = self.__send(message)
 			reply = SSMessage.ParseXML(reply)
+			reply = reply[0]
 			
-			desc = reply['itemdata']['description']
-			priceinpence = reply['itemdata']['priceinpence']
-			return (barcode, desc, priceinpence)
+			if reply.Action == "itemdata":
+				desc = reply.Data['description']
+				priceinpence = reply.Data['priceinpence']
+				return (barcode, desc, priceinpence)
+			else:
+				return None
+				
+			
 		
 		except:
 			return None
 		
 	def GetUserData(self, rfid):
-		message = SSMessage()
-		message.AddAction("getuser",{"rfid":rfid})
-		message = message.GetXML()
+		action = SSAction("getuser", {"rfid":rfid})
+		message = SSMessage(action).GetXML()
 		try:
 			reply, _recvd = self.__send(message)
 			reply = SSMessage.ParseXML(reply)
+			reply = reply[0]
 			
-			username = reply['userdata']['username']
-			balance = reply['userdata']['balance']
-			limit = reply['userdata']['limit']
-			memberID = reply['userdata']['memberid']
+			if reply.Action == "userdata":
+				username = reply.Data['username']
+				balance = reply.Data['balance']
+				limit = reply.Data['limit']
+				memberID = reply.Data['memberid']
+				self.logger.info("Got user %s" % username)
+				return (memberID, username, balance, limit)
 			
-			self.logger.info("Got user %s" % username)
+			else:
+				self.logger.info("Unrecognised rfid %s" % rfid)
+				return None
 			
-			return (memberID, username, balance, limit)
 
 		except:
 			pass
@@ -66,7 +77,8 @@ class SSDbRemote:
 		message = SSMessage()
 		
 		for (barcode, count) in itemdata:
-			message.AddAction("transactions", {"barcode":barcode,"memberID":memberID, "count":count})
+			action = SSAction("transaction", {"barcode":barcode,"memberid":memberID, "count":count})
+			message.AddAction(action)
 		
 		try:
 			reply, _recvd = self.__send(message.GetXML())
@@ -77,7 +89,8 @@ class SSDbRemote:
 			raise
 		
 	def AddItem(self, barcode, description, priceinpence):
-		message = SSMessage("additem", [{"barcode":barcode},{"description":description},{"priceinpence":priceinpence}], True).GetXML()
+		action = SSAction("additem", {"barcode":barcode, "description":description, "priceinpence":priceinpence})
+		message = SSMessage(action).GetXML()
 		try:
 			reply, _recvd = self.__send(message)
 			reply = SSMessage.ParseXML(reply)
@@ -85,7 +98,8 @@ class SSDbRemote:
 			return None
 		
 	def AddCredit(self, memberID, amountinpence):
-		message = SSMessage("getitem", [{"memberID":memberID}, {"amountinpence":amountinpence}], True).GetXML()
+		action = SSAction("addcredit", {"memberID":memberID, "amountinpence":amountinpence})
+		message = SSMessage(action).GetXML()
 		try:
 			reply, _recvd = self.__send(message)
 			reply = SSMessage.ParseXML(reply)
@@ -121,7 +135,7 @@ class SSDbRemote:
 		if received > 0:
 			actions = SSMessage.ParseXML(reply)
 			
-			if actions.keys()[0] == 'pingreply':
+			if actions[0].Action == 'pingreply':
 				self.logger.info("Connected to remote server")
 				self.__foundServer = True
 			else:
@@ -190,9 +204,9 @@ class SSDbRemote:
 	
 	def __transactionsSuccessful(self, reply):
 		
-		transactions = reply['transactions']
-		for transaction in transactions.iteritems():
-			print transaction['result']
+		for action in reply:
+			if action.Action == "transaction":
+				print action.Data['result']
 			
 		return True
 		

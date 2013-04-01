@@ -54,30 +54,10 @@ class SSServer:
 
 	def HandleMessage(self, message, db):
 	
-		reply = None
 		actions = SSMessage.ParseXML(message)
 		
-		for action, data in actions.items():
-			
-			self.logger.info("Handling '%s' action..." % action)
-			
-			if action == "ping":
-				reply = SSMessage("pingreply").GetXML()
-			elif action == "getitem":
-				reply = db.GetItem(data)
-			elif action == "getuser":
-				reply = db.GetUser(data)
-			elif action == "transactions":
-				reply = db.ApplyTransactions(data)
-			elif action == "additem":
-				reply = db.AddItem(data)
-			elif action == "addcredit":
-				reply = db.AddCredit(data)
-			elif action == "pingreply":
-				pass # No action required for ping reply
-			else:
-				self.logger.warning("Unknown action '%s'" % action)
-				
+		reply = db.ProcessActions(actions)
+		
 		return reply
 		
 			

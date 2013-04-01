@@ -1,3 +1,5 @@
+from __future__ import division
+
 import logging
 
 from ssconstants import SSRequests, SSScreens
@@ -304,9 +306,10 @@ class SSMainScreen:
 		
 		nextState = self.states.PAYMENTMESSAGE
 		
-		amountinpounds = self.__totalPrice__()
+		amountinpounds = self.__totalPrice__() / 100
+		
 		if self.UserFuncs.ChargeAll() == True:
-			self.gui.SetBannerWithTimeout("Thank you! You have been charged \xA3%.2f" % amountinpounds, 10, SS_INFO_FG, self.__bannerTimeout__)
+			self.gui.SetBannerWithTimeout("Thank you! You have been charged \xA3%.2f" % amountinpounds, 8, SS_INFO_FG, self.__bannerTimeout__)
 		else:
 			self.gui.SetBannerWithTimeout("An error occurred and has been logged.", 10, SS_WARNING_FG, self.__bannerTimeout__)
 			self.logger.error("Failed to charge user %s %d pence")
