@@ -163,8 +163,8 @@ Status = {
 
 class RFIDReader:
     
-    def __init__(self):
-        self.io = Serial('/dev/ttyUSB0', 9600, timeout=1)
+    def __init__(self, port):
+        self.io = Serial(port, 9600, timeout=1)
 
     def PollForCardID(self):
         p = Packet(cmd=Mifare.GetSNR,data=[0x26,0,0])

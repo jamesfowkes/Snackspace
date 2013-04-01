@@ -11,19 +11,19 @@ from rfid import RFIDReader
 
 from bunch import Bunch
 
-from ssconstants import SSRequests, SSScreens
+from constants import Requests, Screens
 
-from ssitem import SSItem
-from ssuser import SSUser
+from item import Item
+from user import User
 
-from ssdbremote import SSDbRemote
+from dbremote import DbRemote
 
-from screens.ssintroscreen import SSIntroScreen
-from screens.ssnumericentry import SSNumericEntry
-from screens.ssmainscreen import SSMainScreen
+from screens.introscreen import IntroScreen
+from screens.numericentry import NumericEntry
+from screens.mainscreen import MainScreen
 
 class Snackspace:
-	def __init__(self, window, size, localdb):
+	def __init__(self, window, size, localdb, rfid_port=None):
 		
 		self.inittime = int(time.time())
 		
@@ -32,50 +32,51 @@ class Snackspace:
 		self.height = size[1]
 		
 		self.localdb = localdb
-		
+		self.rfid_port = rfid_port
+
 		self.__setConstants__()
 		
 		self.__setVariables__()
 		
 		self.ScreenFunctions = Bunch(
-			RequestScreen = self.__RequestScreen__)		
+			RequestScreen=self.__RequestScreen__)		
 	
 		self.UserFunctions = Bunch(
-			Get = lambda: self.user,
-			ChargeAll = self.__ChargeAll__,
-			PayDebt = self.__CreditUser__,
-			Forget = self.__ForgetUser__
+			Get=lambda: self.user,
+			ChargeAll=self.__ChargeAll__,
+			PayDebt=self.__CreditUser__,
+			Forget=self.__ForgetUser__
 			)
 		
 		self.ItemFunctions = Bunch(
-			RequestAllItems = self.__RequestAllItems__,
-			TotalPrice = self.__TotalPrice__,
-			RemoveItem = self.__RemoveItem__,
-			RemoveAll = self.__RemoveAllItems__)
+			RequestAllItems=self.__RequestAllItems__,
+			TotalPrice=self.__TotalPrice__,
+			RemoveItem=self.__RemoveItem__,
+			RemoveAll=self.__RemoveAllItems__)
 		
 		# Instantiate all the screens now
 		self.screens = {
-			SSScreens.INTROSCREEN.value	: SSIntroScreen(self.width, self.height, self.ScreenFunctions, self.UserFunctions, self.ItemFunctions),
-			SSScreens.NUMERICENTRY.value	: SSNumericEntry(self.width, self.height, self.ScreenFunctions, self.UserFunctions),
-			SSScreens.MAINSCREEN.value	: SSMainScreen(self.width, self.height, self.ScreenFunctions, self.UserFunctions, self.ItemFunctions)
+			Screens.INTROSCREEN.value	: IntroScreen(self.width, self.height, self.ScreenFunctions, self.UserFunctions, self.ItemFunctions),
+			Screens.NUMERICENTRY.value	: NumericEntry(self.width, self.height, self.ScreenFunctions, self.UserFunctions),
+			Screens.MAINSCREEN.value	: MainScreen(self.width, self.height, self.ScreenFunctions, self.UserFunctions, self.ItemFunctions)
 			}
 		
-		self.screens[SSScreens.INTROSCREEN.value].acceptGUIEvents = False
-		self.screens[SSScreens.NUMERICENTRY.value].acceptGUIEvents = True
-		self.screens[SSScreens.MAINSCREEN.value].acceptGUIEvents = True
+		self.screens[Screens.INTROSCREEN.value].acceptGUIEvents = False
+		self.screens[Screens.NUMERICENTRY.value].acceptGUIEvents = True
+		self.screens[Screens.MAINSCREEN.value].acceptGUIEvents = True
 		
-		self.currentscreen = SSScreens.BLANKSCREEN
-		self.__setScreen__(SSScreens.INTROSCREEN, False)
+		self.currentscreen = Screens.BLANKSCREEN
+		self.__setScreen__(Screens.INTROSCREEN, False)
 		
 		if not self.dbaccess.isConnected:
 			self.logger.warning("Could not find remote database")
-			self.screens[SSScreens.INTROSCREEN.value].setIntroText(
+			self.screens[Screens.INTROSCREEN.value].setIntroText(
 				"ERROR: Cannot access Snackspace remote database",
 				(0xFF, 0, 0))
-			self.__setScreen__(SSScreens.INTROSCREEN, True)
+			self.__setScreen__(Screens.INTROSCREEN, True)
 		else:
 			self.logger.info("Found remote database")
-			self.screens[SSScreens.INTROSCREEN.value].acceptGUIEvents = True
+			self.screens[Screens.INTROSCREEN.value].acceptGUIEvents = True
 		
 	def StartEventLoop(self):
 		
@@ -96,7 +97,13 @@ class Snackspace:
 			
 			if (pygame.time.get_ticks() - ticks) > 1000:
 				ticks = pygame.time.get_ticks()
-				rfid = self.rfid.PollForCardID()
+				
+				if self.rfid is not None:
+					rfid = self.rfid.PollForCardID()
+				else:
+					rfid = self.fakeRFID
+					self.fakeRFID = []
+					
 				if len(rfid):
 					self.__onSwipeEvent__(self.__mangleRFID__(rfid))
 	
@@ -115,8 +122,11 @@ class Snackspace:
 			self.scannedinput += event.dict['unicode']
 		elif (event.key == pygame.K_RETURN):
 			
-			self.logger.info("Got raw input '%s'" % self.scannedinput)
-			self.__onScanEvent__(self.scannedinput)
+			if self.scannedinput == '999' and self.rfid is None:
+				self.fakeRFID = [0x1B, 0x7F, 0x2D, 0x2D]
+			else:
+				self.logger.info("Got raw input '%s'" % self.scannedinput)
+				self.__onScanEvent__(self.scannedinput)
 			
 			self.scannedinput = ''
 					
@@ -124,7 +134,7 @@ class Snackspace:
 		userdata = self.dbaccess.GetUserData(cardnumber)
 		
 		if userdata is not None:
-			self.user = SSUser(*userdata)
+			self.user = User(*userdata)
 			self.logger.info("Got user %s" % self.user.Name)
 		else:
 			self.logger.info("Bad RFID %s" % cardnumber)
@@ -170,29 +180,33 @@ class Snackspace:
 				
 	def __setConstants__(self):
 		self.validKeys = [
-			pygame.K_0, pygame.K_1,	pygame.K_2, pygame.K_3, pygame.K_4,
-			pygame.K_5, pygame.K_6,	pygame.K_7, pygame.K_8, pygame.K_9
+			pygame.K_0, pygame.K_1, 	pygame.K_2, pygame.K_3, pygame.K_4,
+			pygame.K_5, pygame.K_6, 	pygame.K_7, pygame.K_8, pygame.K_9
 		]
 	
 	def __setVariables__(self):
 		self.scannedinput = ''
 		
-		self.dbaccess = SSDbRemote(self.localdb)
+		self.dbaccess = DbRemote(self.localdb)
 		
 		self.logger = logging.getLogger("snackspace")
 		
-		self.rfid = RFIDReader();
-		
+		if self.rfid_port != 'fake':
+			self.rfid = RFIDReader(self.rfid_port);
+		else:
+			self.rfid = None
+			self.fakeRFID = []
+
 		self.user = None
 		self.items = []
 		
 	def __RequestScreen__(self, currentscreenid, request, force):
-		if request == SSRequests.MAIN:
-			self.__setScreen__(SSScreens.MAINSCREEN, force)
-		elif request == SSRequests.PAYMENT:
-			self.__setScreen__(SSScreens.NUMERICENTRY, force)
-		elif request == SSRequests.INTRO:
-			self.__setScreen__(SSScreens.INTROSCREEN, force)
+		if request == Requests.MAIN:
+			self.__setScreen__(Screens.MAINSCREEN, force)
+		elif request == Requests.PAYMENT:
+			self.__setScreen__(Screens.NUMERICENTRY, force)
+		elif request == Requests.INTRO:
+			self.__setScreen__(Screens.INTROSCREEN, force)
 	
 	def __ChargeAll__(self):
 		if self.user is not None:
@@ -220,13 +234,13 @@ class Snackspace:
 		if item is not None:
 			item.Increment()
 		else:
-			itemdata  = self.dbaccess.GetItem(barcode) 
+			itemdata = self.dbaccess.GetItem(barcode) 
 			
 			if itemdata:
-				item = SSItem(*itemdata)
+				item = Item(*itemdata)
 				
 				if item is not None and item.Valid:
-					self.items.append( item )
+					self.items.append(item)
 				else:
 					item = None
 			
@@ -248,7 +262,8 @@ class Snackspace:
 def main(argv=None):
 
 	parser = argparse.ArgumentParser(description='Snackspace Server')
-	parser.add_argument('-L', dest='localmode', nargs='?',default='n', const='y')
+	parser.add_argument('-L', dest='localmode', nargs='?', default='n', const='y')
+	parser.add_argument('-P', dest='rfid_port', nargs='?', default='/dev/ttyUSB0')
 	
 	args = parser.parse_args()
 	
@@ -258,11 +273,8 @@ def main(argv=None):
 	
 	window = pygame.display.set_mode(size)
 	
-	if args.localmode == 'y':
-		s = Snackspace(window, size, True)
-	else:
-		s = Snackspace(window, size, False)
-
+	s = Snackspace(window, size, args.localmode == 'y', args.rfid_port)
+	
 	logging.basicConfig(level=logging.DEBUG)
 
 	s.StartEventLoop()

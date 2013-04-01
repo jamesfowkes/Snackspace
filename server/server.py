@@ -4,10 +4,10 @@ import argparse
 
 import logging
 
-from ssdblocal import SSDbLocal
-from ssxml import SSMessage
+from dblocal import DbLocal
+from messaging import Message
 
-class SSServer:
+class Server:
 	
 	def __init__(self, localmode, db):
 		
@@ -54,7 +54,7 @@ class SSServer:
 
 	def HandleMessage(self, message, db):
 	
-		actions = SSMessage.ParseXML(message)
+		actions = Message.ParseXML(message)
 		
 		reply = db.ProcessActions(actions)
 		
@@ -68,8 +68,8 @@ def main(argv = None):
 		
 	args = parser.parse_args()
 
-	db = SSDbLocal(args.localmode == 'y');
-	__server = SSServer(args.localmode == 'y', db)
+	db = DbLocal(args.localmode == 'y');
+	__server = Server(args.localmode == 'y', db)
 
 	
 if __name__ == "__main__":
