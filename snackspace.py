@@ -21,6 +21,7 @@ from dbremote import DbRemote
 from screens.introscreen import IntroScreen
 from screens.numericentry import NumericEntry
 from screens.mainscreen import MainScreen
+from screens.productentry import ProductEntry
 
 class Snackspace:
 	def __init__(self, window, size, localdb, rfid_port=None):
@@ -39,26 +40,28 @@ class Snackspace:
 		self.__setVariables__()
 		
 		self.ScreenFunctions = Bunch(
-			RequestScreen=self.__RequestScreen__)		
+			RequestScreen = self.__RequestScreen__)		
 	
 		self.UserFunctions = Bunch(
 			Get=lambda: self.user,
-			ChargeAll=self.__ChargeAll__,
-			PayDebt=self.__CreditUser__,
-			Forget=self.__ForgetUser__
+			ChargeAll = self.__ChargeAll__,
+			PayDebt = self.__CreditUser__,
+			Forget = self.__ForgetUser__
 			)
 		
 		self.ItemFunctions = Bunch(
-			RequestAllItems=self.__RequestAllItems__,
-			TotalPrice=self.__TotalPrice__,
-			RemoveItem=self.__RemoveItem__,
-			RemoveAll=self.__RemoveAllItems__)
+			RequestAllItems = self.__RequestAllItems__,
+			TotalPrice = self.__TotalPrice__,
+			RemoveItem = self.__RemoveItem__,
+			RemoveAll = self.__RemoveAllItems__,
+			NewItems = self.__NewItems__)
 		
 		# Instantiate all the screens now
 		self.screens = {
 			Screens.INTROSCREEN.value	: IntroScreen(self.width, self.height, self.ScreenFunctions, self.UserFunctions, self.ItemFunctions),
 			Screens.NUMERICENTRY.value	: NumericEntry(self.width, self.height, self.ScreenFunctions, self.UserFunctions),
-			Screens.MAINSCREEN.value	: MainScreen(self.width, self.height, self.ScreenFunctions, self.UserFunctions, self.ItemFunctions)
+			Screens.MAINSCREEN.value	: MainScreen(self.width, self.height, self.ScreenFunctions, self.UserFunctions, self.ItemFunctions),
+			Screens.PRODUCTENTRY.value	: ProductEntry(self.width, self.height, self.ScreenFunctions, self.ItemFunctions)
 			}
 		
 		self.screens[Screens.INTROSCREEN.value].acceptGUIEvents = False
@@ -119,16 +122,26 @@ class Snackspace:
 		
 	def __inputHandler__(self, event):
 		if (event.key in self.validKeys):
+			#Add new keypress to buffer
 			self.scannedinput += event.dict['unicode']
-		elif (event.key == pygame.K_RETURN):
 			
-			if self.scannedinput == '999' and self.rfid is None:
-				self.fakeRFID = [0x1B, 0x7F, 0x2D, 0x2D]
-			else:
-				self.logger.info("Got raw input '%s'" % self.scannedinput)
-				self.__onScanEvent__(self.scannedinput)
+		elif (event.key == pygame.K_RETURN):
+			## Buffer is complete, process it
+			self.logger.info("Got raw input '%s'" % self.scannedinput)
+			self.__onScanEvent__(self.scannedinput)
 			
 			self.scannedinput = ''
+				
+		elif (event.key == pygame.K_a) and (pygame.key.get_mods() & pygame.KMOD_CTRL):
+			## Go to product entry screen
+			self.__RequestScreen__(Screens.MAINSCREEN, Requests.PRODUCTS, False)
+			
+		elif (event.key == pygame.K_u) and (pygame.key.get_mods() & pygame.KMOD_CTRL):
+			## Fake an RFID swipe
+			if self.rfid is None:
+				self.fakeRFID = [0x1B, 0x7F, 0x2D, 0x2D]
+			
+			
 					
 	def __onSwipeEvent__(self, cardnumber):
 		userdata = self.dbaccess.GetUserData(cardnumber)
@@ -207,7 +220,9 @@ class Snackspace:
 			self.__setScreen__(Screens.NUMERICENTRY, force)
 		elif request == Requests.INTRO:
 			self.__setScreen__(Screens.INTROSCREEN, force)
-	
+		elif request == Requests.PRODUCTS:
+			self.__setScreen__(Screens.PRODUCTENTRY, force)
+				
 	def __ChargeAll__(self):
 		if self.user is not None:
 			items = [(item.Barcode, item.Count) for item in self.items]
@@ -259,6 +274,9 @@ class Snackspace:
 	def __RemoveAllItems__(self):
 		self.items = []
 
+	def __NewItems__(self, itemlist):
+		pass
+	
 def main(argv=None):
 
 	parser = argparse.ArgumentParser(description='Snackspace Server')

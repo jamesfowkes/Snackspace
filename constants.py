@@ -16,6 +16,7 @@ class Requests:
 	INTRO = Constant("INTRO", 0)
 	MAIN = Constant("MAIN", 1)
 	PAYMENT = Constant("PAYMENT", 2)
+	PRODUCTS = Constant("PRODUCTS", 3)
 	
 class Screens:
 	
@@ -23,6 +24,7 @@ class Screens:
 	INTROSCREEN = Constant("INTROSCREEN", 0)
 	MAINSCREEN = Constant("MAINSCREEN", 1)
 	NUMERICENTRY = Constant("NUMERICENTRY", 2)
-	WAITING = Constant("WAITING", 3)
+	PRODUCTENTRY = Constant("PRODUCTENTRY", 3)
+	WAITING = Constant("WAITING", 4)
 
 	
