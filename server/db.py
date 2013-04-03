@@ -11,10 +11,7 @@ onlineSqlUrl = 'https://nottinghack-instrumentation.googlecode.com/svn/db/'
 #List of tables that the Snackspace application needs
 tables = ['members', 'rfid_tags', 'transaction', 'products']
 
-#List of stored procedures that the Snackspace application needs
-procs = ['sp_check_rfid', 'transactions', 'products', 'rfid_tags']
-
-
+transactionSprocPath
 class db:
 	
 	def __init__(self, useTestDb):
@@ -68,13 +65,7 @@ class db:
 	def Transaction(self, memberid, barcode, count):
 		
 		try:
-			item_data = self.db.products.filter(self.db.products.barcode==barcode).one()
-			user_data = self.db.users.filter(self.db.users.member_id == memberid).one()
-			
-			user_data.balance = user_data.balance - (item_data.price * count)
-			
-		except:
-			result = None
+			sproc = 
 		
 		return result
 	

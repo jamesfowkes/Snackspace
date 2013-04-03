@@ -21,7 +21,7 @@ from dbremote import DbRemote
 from screens.introscreen import IntroScreen
 from screens.numericentry import NumericEntry
 from screens.mainscreen import MainScreen
-from screens.productentry import ProductEntry
+#from screens.productentry import ProductEntry
 
 class Snackspace:
 	def __init__(self, window, size, localdb, rfid_port=None):
@@ -61,7 +61,7 @@ class Snackspace:
 			Screens.INTROSCREEN.value	: IntroScreen(self.width, self.height, self.ScreenFunctions, self.UserFunctions, self.ItemFunctions),
 			Screens.NUMERICENTRY.value	: NumericEntry(self.width, self.height, self.ScreenFunctions, self.UserFunctions),
 			Screens.MAINSCREEN.value	: MainScreen(self.width, self.height, self.ScreenFunctions, self.UserFunctions, self.ItemFunctions),
-			Screens.PRODUCTENTRY.value	: ProductEntry(self.width, self.height, self.ScreenFunctions, self.ItemFunctions)
+			#Screens.PRODUCTENTRY.value	: ProductEntry(self.width, self.height, self.ScreenFunctions, self.ItemFunctions)
 			}
 		
 		self.screens[Screens.INTROSCREEN.value].acceptGUIEvents = False
