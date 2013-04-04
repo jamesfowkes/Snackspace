@@ -4,10 +4,10 @@ from introscreen_gui import IntroScreenGUI
 
 class IntroScreen:
 
-	def __init__(self, width, height, screenFuncs, userFuncs, itemFuncs):
+	def __init__(self, width, height, screenFuncs, userFuncs, productFuncs):
 		
 		self.ScreenFuncs = screenFuncs
-		self.ItemFuncs = itemFuncs
+		self.ProductFuncs = productFuncs
 		self.UserFuncs = userFuncs
 		
 		self.gui = IntroScreenGUI(width, height, self)

@@ -18,7 +18,7 @@ class ScreenGUI:
 		self.banner = None
 		
 		try:
-			self.sound = pygame.mixer.Sound(SOUNDFILE)
+			pass #self.sound = pygame.mixer.Sound(SOUNDFILE)
 		except:
 			raise
 		
@@ -40,7 +40,7 @@ class ScreenGUI:
 		return objectId
 	
 	def playSound(self):
-		self.sound.play()
+		pass #self.sound.play()
 		
 	def SetBannerWithTimeout(self, text, timeout, colour, callback):
 		

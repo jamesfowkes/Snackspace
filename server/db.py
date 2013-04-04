@@ -1,5 +1,5 @@
 import os
-import sqlsoup
+import sqlsoup #@UnresolvedImport
 import urllib
 import re
 
@@ -11,7 +11,6 @@ onlineSqlUrl = 'https://nottinghack-instrumentation.googlecode.com/svn/db/'
 #List of tables that the Snackspace application needs
 tables = ['members', 'rfid_tags', 'transaction', 'products']
 
-transactionSprocPath
 class db:
 	
 	def __init__(self, useTestDb):
@@ -47,16 +46,16 @@ class db:
 		
 		return result
 	
-	def GetItem(self, barcode):
+	def GetIProduct(self, barcode):
 		
 		result = {}
 		
 		try:
-			item_data = self.db.products.filter(self.db.products.barcode==barcode).one()
-			result['barcode'] = item_data.barcode
-			result['shortdesc'] = item_data.shortdesc
-			result['price'] = item_data.price
-		
+			product_data = self.db.products.filter(self.db.products.barcode==barcode).one()
+			result['barcode'] = product_data.barcode
+			result['shortdesc'] = product_data.shortdesc
+			result['price'] = product_data.price
+					
 		except:
 			result = None
 	
@@ -64,11 +63,27 @@ class db:
 	
 	def Transaction(self, memberid, barcode, count):
 		
+		result = {}
+		
 		try:
-			sproc = 
+			product_data = self.db.products.filter(self.db.products.barcode==barcode).one()
+			member_data = self.db.members.filter(self.db.members.member_id==memberid).one()
+			
+			self.db.transactions.insert(
+									amount = -product_data.price,
+									transaction_type = "SNACKSPACE",
+									transaction_status = "COMPLETE",
+									transaction_desc = product_data.shortdesc,
+									product_id = product_data.product_id)
+			
+			member_data.balance -= product_data.price
+			self.db.commit()
+
+		except:
+			result = None
 		
 		return result
-	
+		
 	def __createTestDb(self):
 		for table in tables:
 			filename = "tb_%s.sql" % table

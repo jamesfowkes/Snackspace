@@ -14,7 +14,7 @@ from screen_gui import ScreenGUI
 class MainScreenLayout:
 	def __init__(self, width, height, border):
 		
-		self.itemrowh = 100
+		self.productrowh = 100
 		self.buttonw = 100
 		self.largebuttonw = (self.buttonw * 2)
 		self.buttonh = 50
@@ -37,22 +37,22 @@ class MainScreenLayout:
 		
 		self.topbarwidth = self.innerWidth - self.amountw - BORDER_W
 		
-		self.itemtopy = self.topbary + self.buttonh + BORDER_W
-		self.itemx = self.topbarx
+		self.producttopy = self.topbary + self.buttonh + BORDER_W
+		self.productx = self.topbarx
 		
-		self.scrollbuttonh = (self.buttonsy - self.itemtopy) / 2
+		self.scrollbuttonh = (self.buttonsy - self.producttopy) / 2
 		self.scrollbuttonh -= BORDER_W
 		
 		self.scrollbuttonw = self.buttonh 
 		self.scrollx = width - BORDER_W - self.scrollbuttonw 
-		self.upy = self.itemtopy
+		self.upy = self.producttopy
 		self.downy = self.upy + self.scrollbuttonh + BORDER_W
 	
-		self.setItemConstants()
+		self.setProductConstants()
 		
-	def setItemConstants(self):
-		# Position constants for item objects
-		self.descx = self.itemx
+	def setProductConstants(self):
+		# Position constants for product objects
+		self.descx = self.productx
 		self.descw = self.largebuttonw * 1.8
 		self.pricex = self.descx + self.descw + BORDER_W
 		self.pricew = self.largebuttonw / 2
@@ -79,11 +79,11 @@ class MainScreenLayout:
 	def getDownScrollRect(self):
 		return pygame.Rect(self.scrollx, self.downy, self.scrollbuttonw, self.scrollbuttonh)
 		
-class SSDisplayItem():
+class ProductDisplay():
 	
-	def __init__(self, ssitem, visible=True):
+	def __init__(self, product, visible=True):
 		
-		self.SnackspaceItem = ssitem
+		self.SnackspaceProduct = product
 		
 		self.descFormatPence = "%s (%dp)"
 		self.descFormatPounds = u"%s (\xA3%.2f)"
@@ -91,7 +91,7 @@ class SSDisplayItem():
 		self.priceFormatPence = "%dp"
 		self.priceFormatPounds = "\xA3%.2f"
 
-		self.logger = logging.getLogger("MainScreen.GUI.Item")
+		self.logger = logging.getLogger("MainScreen.GUI.Product")
 		self.LCARSObjects = [None] * 3
 	
 	def collideOnRemove(self, pos):
@@ -102,24 +102,24 @@ class SSDisplayItem():
 			try:
 				collide = self.LCARSObjects[2].collidePoint(pos)
 			except AttributeError:
-				# Off-screen items might not have GUI objects.
+				# Off-screen products might not have GUI objects.
 				# This is OK.
 				pass
 
 		return collide
 	
 	def setVisible(self, visible):
-		self.logger.info("Setting item %s visibility to '%s'" % 
-			(self.SnackspaceItem.Description, "visible" if visible else "invisible"))
+		self.logger.info("Setting product %s visibility to '%s'" % 
+			(self.SnackspaceProduct.Description, "visible" if visible else "invisible"))
 		self.__visible = visible
 
 	def getVisible(self):
 		return self.__visible
 	
 	def updateStrings(self):
-		description = self.SnackspaceItem.Description
-		priceinpence = self.SnackspaceItem.PriceEach
-		totalprice = self.SnackspaceItem.TotalPrice
+		description = self.SnackspaceProduct.Description
+		priceinpence = self.SnackspaceProduct.PriceEach
+		totalprice = self.SnackspaceProduct.TotalPrice
 		
 		self.description = self.formatDesciption(description, priceinpence)
 		self.priceString = self.formatPrice(totalprice)
@@ -176,8 +176,8 @@ class MainScreenGUI(ScreenGUI):
 		
 		self.setVariables()
 		
-		# Array of SSDisplayItems
-		self.displayitems = []
+		# Array of ProductDisplays
+		self.productDisplays = []
 				
 		# #
 		# # Fixed position objects
@@ -211,44 +211,44 @@ class MainScreenGUI(ScreenGUI):
 		self.AMOUNT = 4
 		self.UP = 5
 		self.DOWN = 6
-		self.ITEM = 7
+		self.PRODUCT = 7
 		self.REMOVE = 8
 		
-		self.maxScreenItems = 5
-		self.objectsPerItemRow = 3
+		self.maxScreenProducts = 5
+		self.objectsPerProductRow = 3
 	
 	def setVariables(self):
 		self.logger = logging.getLogger("MainScreen.GUI")
-		self.topItemIndex = 0
+		self.topProductIndex = 0
 		
-	def addDisplayItem(self, item):
+	def addToProductDisplay(self, product):
 		
-		if item not in [displayitem.SnackspaceItem for displayitem in self.displayitems]:
-			self.displayitems.append(SSDisplayItem(item, True))	
+		if product not in [displayproduct.SnackspaceProduct for displayproduct in self.productDisplays]:
+			self.productDisplays.append(ProductDisplay(product, True))	
 	
 	def updateTotal(self):
 		self.objects[self.AMOUNT].setText("Total Spend: \xA3%.2f" % (self.owner.TotalPrice() / 100))
 		
-	def getItemAtPosition(self, pos):
-		item = next((item.SnackspaceItem for item in self.displayitems if item.collideOnRemove(pos)), None)
-		return item
+	def getProductAtPosition(self, pos):
+		product = next((product.SnackspaceProduct for product in self.productDisplays if product.collideOnRemove(pos)), None)
+		return product
 	
-	def removeItem(self, itemToRemove):
-		self.logger.debug("Removing item %s" % itemToRemove.Barcode)
-		self.displayitems = [item for item in self.displayitems if itemToRemove != item.SnackspaceItem]
+	def removeProduct(self, productToRemove):
+		self.logger.debug("Removing product %s" % productToRemove.Barcode)
+		self.productDisplays = [product for product in self.productDisplays if productToRemove != product.SnackspaceProduct]
 		
-		if self.topItemIndex > 0:
-			self.topItemIndex -= 1
+		if self.topProductIndex > 0:
+			self.topProductIndex -= 1
 			
 	def moveUp(self):
 		self.logger.debug("UP button pressed")
-		if self.topItemIndex > 0:
-			self.topItemIndex -= 1
+		if self.topProductIndex > 0:
+			self.topProductIndex -= 1
 			
 	def moveDown(self):
 		self.logger.debug("DOWN button pressed")
-		if (self.topItemIndex + self.maxScreenItems) < len(self.displayitems):
-			self.topItemIndex += 1
+		if (self.topProductIndex + self.maxScreenProducts) < len(self.productDisplays):
+			self.topProductIndex += 1
 	
 	def removeButtonWidth(self):
 		removew = self.w - self.Layout.removex - BORDER_W
@@ -264,8 +264,8 @@ class MainScreenGUI(ScreenGUI):
 		
 		if objectId == -1:
 			# Try searching remove buttons
-			for item in self.displayitems:
-				if item.collideOnRemove(pos):
+			for product in self.productDisplays:
+				if product.collideOnRemove(pos):
 					objectId = self.REMOVE
 							
 		return objectId
@@ -280,49 +280,49 @@ class MainScreenGUI(ScreenGUI):
 			self.objects[self.TOPBAR].setText(u"Username: %s (Balance: -\xA3%.2f)" % (name, -balance / 100))
 				
 	def testDisplayUpButton(self):
-		return (self.topItemIndex > 0)
+		return (self.topProductIndex > 0)
 	
 	def testDisplayDownButton(self):
-		return (self.topItemIndex + self.maxScreenItems) < len(self.displayitems)
+		return (self.topProductIndex + self.maxScreenProducts) < len(self.productDisplays)
 	
-	def clearItems(self):
-		self.displayitems = []
-		self.topItemIndex = 0
+	def clearProducts(self):
+		self.productDisplays = []
+		self.topProductIndex = 0
 		
 	def draw(self, window):
 		window.fill(RGB_BG)
 	
-		self.setShowHideItems()
-		self.drawItems(window)
+		self.setShowHideProducts()
+		self.drawProducts(window)
 		self.drawStaticObjects(window)
 		
 		pygame.display.flip()
 
-	def setShowHideItems(self):
+	def setShowHideProducts(self):
 		
 		visibleCount = 0
 		
-		for (counter, item) in enumerate(self.displayitems):
+		for (counter, product) in enumerate(self.productDisplays):
 		
-			if (counter < self.topItemIndex):
-				# Hide all the items above the list item top
-				item.setVisible(False)
-			elif visibleCount < self.maxScreenItems:
-				# Show screen items based on their quantity
-				item.setVisible(True)
+			if (counter < self.topProductIndex):
+				# Hide all the products above the list product top
+				product.setVisible(False)
+			elif visibleCount < self.maxScreenProducts:
+				# Show screen products based on their quantity
+				product.setVisible(True)
 				visibleCount += 1
 			else:
-				# Hide items below list bottom
-				item.setVisible(False)
+				# Hide products below list bottom
+				product.setVisible(False)
 				
-	def drawItems(self, window):
+	def drawProducts(self, window):
 	
-		yPosition = self.Layout.itemtopy
+		yPosition = self.Layout.producttopy
 		
-		# Iterate over all items in list
-		for item in self.displayitems:
-			if item.getVisible():
-				item.draw(self.Layout, yPosition, self.removeButtonWidth(), window)
+		# Iterate over all products in list
+		for product in self.productDisplays:
+			if product.getVisible():
+				product.draw(self.Layout, yPosition, self.removeButtonWidth(), window)
 				yPosition += self.Layout.buttonh + BORDER_W
 		
 	def drawStaticObjects(self, window):
@@ -346,7 +346,7 @@ class MainScreenGUI(ScreenGUI):
 		
 		# Decide which objects should be shown
 		self.objects[self.PAY].visible = self.owner.UserLogged() and self.owner.UserInDebt()
-		self.objects[self.DONE].visible = (len(self.displayitems) > 0) and self.owner.UserLogged()
+		self.objects[self.DONE].visible = (len(self.productDisplays) > 0) and self.owner.UserLogged()
 		self.objects[self.UP].visible = self.testDisplayUpButton()
 		self.objects[self.DOWN].visible = self.testDisplayDownButton()
 		

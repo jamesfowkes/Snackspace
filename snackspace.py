@@ -1,7 +1,7 @@
 import sys
 import pygame
 
-import argparse
+import argparse #@UnresolvedImport
 
 import logging
 
@@ -13,7 +13,7 @@ from bunch import Bunch
 
 from constants import Requests, Screens
 
-from item import Item
+from product import Product
 from user import User
 
 from dbremote import DbRemote
@@ -49,19 +49,19 @@ class Snackspace:
 			Forget = self.__ForgetUser__
 			)
 		
-		self.ItemFunctions = Bunch(
-			RequestAllItems = self.__RequestAllItems__,
+		self.ProductFunctions = Bunch(
+			RequestAllProducts = self.__RequestAllProducts__,
 			TotalPrice = self.__TotalPrice__,
-			RemoveItem = self.__RemoveItem__,
-			RemoveAll = self.__RemoveAllItems__,
-			NewItems = self.__NewItems__)
+			RemoveProduct = self.__RemoveProduct__,
+			RemoveAll = self.__RemoveAllProducts__,
+			NewProducts = self.__NewProducts__)
 		
 		# Instantiate all the screens now
 		self.screens = {
-			Screens.INTROSCREEN.value	: IntroScreen(self.width, self.height, self.ScreenFunctions, self.UserFunctions, self.ItemFunctions),
+			Screens.INTROSCREEN.value	: IntroScreen(self.width, self.height, self.ScreenFunctions, self.UserFunctions, self.ProductFunctions),
 			Screens.NUMERICENTRY.value	: NumericEntry(self.width, self.height, self.ScreenFunctions, self.UserFunctions),
-			Screens.MAINSCREEN.value	: MainScreen(self.width, self.height, self.ScreenFunctions, self.UserFunctions, self.ItemFunctions),
-			#Screens.PRODUCTENTRY.value	: ProductEntry(self.width, self.height, self.ScreenFunctions, self.ItemFunctions)
+			Screens.MAINSCREEN.value	: MainScreen(self.width, self.height, self.ScreenFunctions, self.UserFunctions, self.ProductFunctions),
+			#Screens.PRODUCTENTRY.value	: ProductEntry(self.width, self.height, self.ScreenFunctions, self.ProductFunctions)
 			}
 		
 		self.screens[Screens.INTROSCREEN.value].acceptGUIEvents = False
@@ -168,12 +168,12 @@ class Snackspace:
 			
 	def __onScanEvent__(self, barcode):
 		
-		newitem = self.__AddItem__(barcode)
+		newproduct = self.__AddProduct__(barcode)
 		
-		if newitem is not None:
+		if newproduct is not None:
 			for screen in self.screens.values():
 				try:
-					screen.OnScan(newitem)
+					screen.OnScan(newproduct)
 				except AttributeError:
 					if "OnScan" in dir(screen):
 						raise  # # Only raise error if the method exists
@@ -211,7 +211,7 @@ class Snackspace:
 			self.fakeRFID = []
 
 		self.user = None
-		self.items = []
+		self.products = []
 		
 	def __RequestScreen__(self, currentscreenid, request, force):
 		if request == Requests.MAIN:
@@ -225,8 +225,8 @@ class Snackspace:
 				
 	def __ChargeAll__(self):
 		if self.user is not None:
-			items = [(item.Barcode, item.Count) for item in self.items]
-			return self.dbaccess.SendTransactions(items, self.user.MemberID)
+			products = [(product.Barcode, product.Count) for product in self.products]
+			return self.dbaccess.SendTransactions(products, self.user.MemberID)
 		else:
 			return False
 		
@@ -239,42 +239,42 @@ class Snackspace:
 	def __RequestUser__(self):
 		return None
 	
-	def __RequestAllItems__(self):
+	def __RequestAllProducts__(self):
 		return None
 		
-	def __AddItem__(self, barcode):
+	def __AddProduct__(self, barcode):
 		
-		item = next((item for item in self.items if barcode == item.Barcode), None)
+		product = next((product for product in self.products if barcode == product.Barcode), None)
 		
-		if item is not None:
-			item.Increment()
+		if product is not None:
+			product.Increment()
 		else:
-			itemdata = self.dbaccess.GetItem(barcode) 
+			productdata = self.dbaccess.GetProduct(barcode) 
 			
-			if itemdata:
-				item = Item(*itemdata)
+			if productdata:
+				product = Product(*productdata)
 				
-				if item is not None and item.Valid:
-					self.items.append(item)
+				if product is not None and product.Valid:
+					self.products.append(product)
 				else:
-					item = None
+					product = None
 			
-		return item
+		return product
 		
 	def __TotalPrice__(self):
-		return sum([item.TotalPrice for item in self.items])
+		return sum([product.TotalPrice for product in self.products])
 		
-	def __RemoveItem__(self, itemToRemove):
+	def __RemoveProduct__(self, productToRemove):
 		
-		if itemToRemove.Decrement() == 0:
-			self.items = [item for item in self.items if item != itemToRemove]
+		if productToRemove.Decrement() == 0:
+			self.products = [product for product in self.products if product != productToRemove]
 				
-		return itemToRemove.Count
+		return productToRemove.Count
 		
-	def __RemoveAllItems__(self):
-		self.items = []
+	def __RemoveAllProducts__(self):
+		self.products = []
 
-	def __NewItems__(self, itemlist):
+	def __NewProducts__(self, productlist):
 		pass
 	
 def main(argv=None):

@@ -29,14 +29,14 @@ class DbLocal:
 			
 			if action.Action == "ping":
 				reply.AddAction( Packet("pingreply") )
-			elif action.Action == "getitem":
-				reply.AddAction( self.GetItem(action.Data) )
+			elif action.Action == "getproduct":
+				reply.AddAction( self.GetProduct(action.Data) )
 			elif action.Action == "getuser":
 				reply.AddAction( self.GetUser(action.Data) )
 			elif action.Action == "transaction":
 				reply.AddAction( self.ApplyTransaction(action.Data) )
-			elif action.Action == "additem":
-				reply.AddAction ( self.AddItem(action.Data) )
+			elif action.Action == "addproduct":
+				reply.AddAction ( self.AddProduct(action.Data) )
 			elif action.Action == "addcredit":
 				reply.AddAction( self.AddCredit(action.Data) )
 			elif action.Action == "pingreply":
@@ -48,12 +48,12 @@ class DbLocal:
 		
 		return reply.GetXML()
 		
-	def GetItem(self, data):
+	def GetProduct(self, data):
 		barcode = data['barcode']
 		
-		self.logger.info("Getting item %s" % barcode)
+		self.logger.info("Getting product %s" % barcode)
 		
-		return self.__itemFromBarcode(barcode)
+		return self.__productFromBarcode(barcode)
 	
 	def GetUser(self, data):
 		rfid = data['rfid']
@@ -62,19 +62,19 @@ class DbLocal:
 		
 		return self.__userFromRFID(rfid) 
 	
-	def AddItem(self, barcode):
-		self.logger.info("Adding new item %s" % barcode)
+	def AddProduct(self, barcode):
+		self.logger.info("Adding new product %s" % barcode)
 
 	
 	def AddCredit(self, memberID, amount):
 		self.logger.info("Adding %s credit to user %s" % (amount, memberID))
 	
-	def __itemFromBarcode(self, barcode):
+	def __productFromBarcode(self, barcode):
 		
-		datatype = 'itemdata'
+		datatype = 'productdata'
 		data = 	{'barcode': '0', 'description': '', 'priceinpence':'0'}
 
-		result = self.db.GetItem(barcode)
+		result = self.db.GetProduct(barcode)
 		
 		if result is not None:
 			data['barcode'] = result['barcode']

@@ -26,15 +26,15 @@ class DbRemote:
 	#	reply, received = self.__send(message, callback)
 	#	callback(reply, received, self.__connected)
 	
-	def GetItem(self, barcode):
-		action = Packet("getitem", {"barcode":barcode})
+	def GetProduct(self, barcode):
+		action = Packet("getproduct", {"barcode":barcode})
 		message = Message(action).GetXML()
 		try:
 			reply, _recvd = self.__send(message)
 			reply = Message.ParseXML(reply)
 			reply = reply[0]
 			
-			if reply.Action == "itemdata":
+			if reply.Action == "productdata":
 				desc = reply.Data['description']
 				priceinpence = reply.Data['priceinpence']
 				return (barcode, desc, priceinpence)
@@ -70,13 +70,13 @@ class DbRemote:
 		except:
 			pass
 		
-	def SendTransactions(self, itemdata, memberID):
+	def SendTransactions(self, productdata, memberID):
 		
 		self.logger.info("Sending transactions")
 		
 		message = Message()
 		
-		for (barcode, count) in itemdata:
+		for (barcode, count) in productdata:
 			action = Packet("transaction", {"barcode":barcode,"memberid":memberID, "count":count})
 			message.AddAction(action)
 		
@@ -88,8 +88,8 @@ class DbRemote:
 		except:
 			raise
 		
-	def AddItem(self, barcode, description, priceinpence):
-		action = Packet("additem", {"barcode":barcode, "description":description, "priceinpence":priceinpence})
+	def AddProduct(self, barcode, description, priceinpence):
+		action = Packet("addproduct", {"barcode":barcode, "description":description, "priceinpence":priceinpence})
 		message = Message(action).GetXML()
 		try:
 			reply, _recvd = self.__send(message)

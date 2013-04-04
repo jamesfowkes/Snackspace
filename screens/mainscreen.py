@@ -75,14 +75,14 @@ class SimpleStateMachineEntry:
 			
 class MainScreen:
 
-	def __init__(self, width, height, screenFuncs, userFuncs, itemFuncs):
+	def __init__(self, width, height, screenFuncs, userFuncs, productFuncs):
 		
 		self.gui = MainScreenGUI(width, height, self)
 		
 		self.__setConstants__()
 		self.__setVariables__()
 		
-		self.ItemFuncs = itemFuncs
+		self.ProductFuncs = productFuncs
 		self.ScreenFuncs = screenFuncs
 		self.UserFuncs = userFuncs
 		
@@ -95,15 +95,15 @@ class MainScreen:
 		self.gui.draw(window)
 	
 	def clearAll(self):
-		self.logger.info("Clearing items")
+		self.logger.info("Clearing products")
 		
 		self.acceptInput = True
 		
-		self.gui.clearItems()
+		self.gui.clearProducts()
 		self.gui.setUnknownUser()
 		
 		self.UserFuncs.Forget()
-		self.ItemFuncs.RemoveAll()
+		self.ProductFuncs.RemoveAll()
 			
 	def OnGuiEvent(self, pos):
 		
@@ -111,9 +111,9 @@ class MainScreen:
 			self.lastGuiPosition = pos
 			self.SM.onStateEvent(self.events.GUIEVENT)
 
-	def OnScan(self, item):
+	def OnScan(self, product):
 		if self.acceptInput:
-			self.newItem = item
+			self.newProduct = product
 			self.SM.onStateEvent(self.events.SCAN)
 	
 	def OnBadScan(self, badcode):
@@ -143,7 +143,7 @@ class MainScreen:
 	###
 	
 	def __totalPrice__(self):
-		return self.ItemFuncs.TotalPrice()
+		return self.ProductFuncs.TotalPrice()
 	
 	def __requestRedraw__(self):
 		self.ScreenFuncs.RequestScreen(Screens.MAINSCREEN, Requests.MAIN, True)
@@ -179,7 +179,7 @@ class MainScreen:
 			SimpleStateMachineEntry(self.states.IDLE, self.events.BADSCAN, 			self.__onIdleBadScanEvent__),
 			SimpleStateMachineEntry(self.states.IDLE, self.events.RFID, 			self.__onRFIDEvent__),
 			SimpleStateMachineEntry(self.states.IDLE, self.events.BADRFID, 			self.__onBadRFIDEvent__),
-			SimpleStateMachineEntry(self.states.IDLE, self.events.ITEMUPDATED, 		self.__requestRedraw__),
+			SimpleStateMachineEntry(self.states.IDLE, self.events.PRODUCTUPDATED, 		self.__requestRedraw__),
 									
 			SimpleStateMachineEntry(self.states.PAYMENTMESSAGE,	 self.events.BANNERTIMEOUT,	self.__returnToIntro__),
 								
@@ -198,7 +198,7 @@ class MainScreen:
 		
 	def __setConstants__(self):
 		self.states = Enum(["INACTIVE", "IDLE", "NUMERIC", "PAYMENTMESSAGE", "WARNING"])
-		self.events = Enum(["GUIEVENT", "SCAN", "BADSCAN", "RFID", "BADRFID", "ITEMUPDATED", "BANNERTIMEOUT"])
+		self.events = Enum(["GUIEVENT", "SCAN", "BADSCAN", "RFID", "BADRFID", "PRODUCTUPDATED", "BANNERTIMEOUT"])
 
 	def __onIdleGuiEvent__(self):
 		
@@ -231,12 +231,12 @@ class MainScreen:
 			
 		if (button == self.gui.REMOVE):
 					
-			item = self.gui.getItemAtPosition(pos)
-			self.logger.info("Removing item %s" % item.Barcode)
+			product = self.gui.getProductAtPosition(pos)
+			self.logger.info("Removing product %s" % product.Barcode)
 						
-			if self.ItemFuncs.RemoveItem(item) == 0:
-				# No items of this type left in list
-				self.gui.removeItem(item)
+			if self.ProductFuncs.RemoveProduct(product) == 0:
+				# No products of this type left in list
+				self.gui.removeProduct(product)
 
 			self.__requestRedraw__()
 			
@@ -244,15 +244,15 @@ class MainScreen:
 	
 	def __onIdleScanEvent__(self):
 		
-		self.logger.info("Got barcode %s" % self.newItem.Barcode)
+		self.logger.info("Got barcode %s" % self.newProduct.Barcode)
 		
 		# Ensure that the warning banner goes away
 		self.gui.HideBanner()
 
-		self.gui.addDisplayItem(self.newItem)
+		self.gui.addProductToDisplay(self.newProduct)
 		self.__requestRedraw__()
 			
-		self.newItem = None
+		self.newProduct = None
 			
 		return self.states.IDLE
 	

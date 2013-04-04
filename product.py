@@ -1,4 +1,4 @@
-class Item:
+class Product:
 		
 	def __init__(self, barcode, description, priceinpence):
 		self.__valid = False
