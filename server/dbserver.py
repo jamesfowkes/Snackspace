@@ -15,36 +15,34 @@ class DbServer:
 		logging.basicConfig(level=logging.DEBUG)
 		self.logger = logging.getLogger("LocalDB")
 		
-		self.pendingActions = []
-		
 		self.db = db(self.useTestDb)
 
-	def ProcessActions(self, actions):
+	def ProcessPackets(self, packets):
 		
 		reply = Message()
 		
-		for action in actions:
+		for packet in packets:
 			
-			self.logger.info("Handling '%s' action..." % action.Action)
+			self.logger.info("Handling '%s' packet..." % packet.Type)
 			
-			if action.Action == "ping":
-				reply.AddAction( Packet("pingreply") )
-			elif action.Action == "getproduct":
-				reply.AddAction( self.GetProduct(action.Data) )
-			elif action.Action == "getuser":
-				reply.AddAction( self.GetUser(action.Data) )
-			elif action.Action == "transaction":
-				reply.AddAction( self.ApplyTransaction(action.Data) )
-			elif action.Action == "addproduct":
-				reply.AddAction ( self.AddProduct(action.Data) )
-			elif action.Action == "addcredit":
-				reply.AddAction( self.AddCredit(action.Data) )
-			elif action.Action == "pingreply":
+			if packet.Type == "ping":
+				reply.AddPacket( Packet("pingreply") )
+			elif packet.Type == "getproduct":
+				reply.AddPacket( self.GetProduct(packet.Data) )
+			elif packet.Type == "getuser":
+				reply.AddPacket( self.GetUser(packet.Data) )
+			elif packet.Type == "transaction":
+				reply.AddPacket( self.ApplyTransaction(packet.Data) )
+			elif packet.Type == "addproduct":
+				reply.AddPacket ( self.AddProduct(packet.Data) )
+			elif packet.Type == "addcredit":
+				reply.AddPacket( self.AddCredit(packet.Data) )
+			elif packet.Type == "pingreply":
 				pass # No action required for ping reply
 			else:
-				self.logger.warning("Unknown action '%s'" % action.Action)
+				self.logger.warning("Unknown packet '%s'" % packet.Type)
 		
-		self.actions = []
+		self.packets = []
 		
 		return reply.GetXML()
 		
@@ -66,8 +64,29 @@ class DbServer:
 		self.logger.info("Adding new product %s" % barcode)
 
 	
-	def AddCredit(self, memberID, amount):
-		self.logger.info("Adding %s credit to user %s" % (amount, memberID))
+	def AddCredit(self, data):
+		memberid = data['memberid']
+		amountinpence = int(data['amountinpence'])
+		
+		self.logger.info("Adding %s credit to member %s" % (amountinpence, memberid))
+		
+		result = self.db.AddCredit(memberid, amountinpence)
+	
+		packet = Packet("result", {"action":"addcredit", "result": "Success" if result else "Fail", "memberid":memberid})
+		
+		return packet
+	
+	def ApplyTransaction(self, data):
+		
+		memberid = data['memberid']
+		barcode = data['barcode']
+		count = int(data['count'])
+		
+		result = self.db.Transaction(memberid, barcode, count)
+		
+		packet = Packet("result", {"action":"transaction", "barcode":barcode, "result": "Success" if result else "Fail", "memberid":memberid})
+			
+		return packet
 	
 	def __productFromBarcode(self, barcode):
 		
@@ -81,9 +100,9 @@ class DbServer:
 			data['description'] = result['shortdesc']
 			data['priceinpence'] = result['price']
 		
-		action = Packet(datatype, data)
+		packet = Packet(datatype, data)
 	
-		return action
+		return packet
 	
 	
 	def __userFromRFID(self, rfid):
@@ -99,20 +118,7 @@ class DbServer:
 			data['balance'] = result['balance']
 			data['limit'] = result['limit']
 		
-		action = Packet(datatype, data)
+		packet = Packet(datatype, data)
 			
-		return action
+		return packet
 	
-
-	def ApplyTransaction(self, data):
-		
-		memberid = data['memberid']
-		barcode = data['barcode']
-		count = int(data['count'])
-		
-		result = self.db.Transaction(memberid, barcode, count)
-		
-		action = Packet("transaction", {"barcode":barcode, "result": "Success" if result else "Fail", "memberid":memberid})
-			
-		return action
-

@@ -26,7 +26,7 @@ from screens.mainscreen import MainScreen
 #from screens.productentry import ProductEntry
 
 class Snackspace:
-	def __init__(self, window, size, localdb, rfid_port=None, limitbehaviour='ignore'):
+	def __init__(self, window, size, localdb, rfid_port=None, limitAction='ignore', creditAction='disallow'):
 		
 		self.inittime = int(time.time())
 		
@@ -36,7 +36,8 @@ class Snackspace:
 		
 		self.localdb = localdb
 		self.rfid_port = rfid_port
-		self.limitBehaviour = limitbehaviour
+		self.limitAction = limitAction
+		self.creditAction = creditAction
 		
 		self.__setConstants()
 		
@@ -151,7 +152,7 @@ class Snackspace:
 		userdata = self.dbaccess.GetUserData(cardnumber)
 		
 		if userdata is not None:
-			self.user = User(*userdata, limitBehaviour=self.limitBehaviour)
+			self.user = User(*userdata, limitAction = self.limitAction, allowCredit = self.creditAction)
 			self.logger.info("Got user %s" % self.user.Name)
 		else:
 			self.logger.info("Bad RFID %s" % cardnumber)
@@ -235,7 +236,8 @@ class Snackspace:
 			return False
 		
 	def __CreditUser(self, amount):
-		self.dbaccess.AddCredit(self.user.MemberID, amount)
+		self.user.addCredit(amount)
+		return self.dbaccess.AddCredit(self.user.MemberID, amount)
 	
 	def __ForgetUser(self):
 		self.user = None
@@ -286,7 +288,8 @@ def main(argv=None):
 	argparser = argparse.ArgumentParser(description='Snackspace Server')
 	argparser.add_argument('-L', dest='localMode', nargs='?', default='n', const='y')
 	argparser.add_argument('-P', dest='rfidPort', nargs='?', default='/dev/ttyUSB0')
-	argparser.add_argument('--onlimit', dest='limitBehaviour', nargs='?', default='ignore')
+	argparser.add_argument('--limitaction', dest='limitAction', nargs='?', default='ignore')
+	argparser.add_argument('--creditaction', dest='creditAction', nargs='?', default='disallow')
 	argparser.add_argument('--file', dest='conffile', nargs='?',default='')
 	
 	args = argparser.parse_args()
@@ -310,13 +313,15 @@ def main(argv=None):
 	if confparser is None:
 		localMode = args.localMode = 'y'
 		rfidPort = args.rfidPort
-		limitBehaviour = args.limitBehaviour
+		limitAction = args.limitAction
+		creditAction = args.creditAction
 	else:
 		localMode = confparser.get('ClientConfig','localmode') == 'y'
 		rfidPort = confparser.get('ClientConfig','rfidport')
-		limitBehaviour = confparser.get('ClientConfig','limitbehaviour')
+		limitAction = confparser.get('ClientConfig','limitaction')
+		creditAction = confparser.get('ClientConfig','creditaction')
 	
-	s = Snackspace(window, size, localMode, rfidPort, limitBehaviour)
+	s = Snackspace(window, size, localMode, rfidPort, limitAction, creditAction)
 	
 	logging.basicConfig(level=logging.DEBUG)
 

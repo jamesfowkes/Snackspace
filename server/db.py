@@ -63,8 +63,6 @@ class db:
 	
 	def Transaction(self, memberid, barcode, count):
 		
-		result = True
-
 		product_data = self.db.products.filter(self.db.products.barcode==barcode).one()
 		member_data = self.db.members.filter(self.db.members.member_id==memberid).one()
 						
@@ -88,11 +86,26 @@ class db:
 			result = False;
 	
 		return result
+	
+	def AddCredit(self, memberid, amountinpence):
 		
+		member_data = self.db.members.filter(self.db.members.member_id==memberid).one()
+		
+		try:
+			member_data.balance += amountinpence
+			self.db.commit()
+			result = True;
+				
+		except:
+			
+			result = False;
+		
+		return result
+	
 	def __createTestDb(self):
 		
 		"""
-		Takes a MySQL create table queries and botches them to work with SQLite
+		Takes MySQL create table queries and botches them to work with SQLite
 		"""
 		
 		for table in tables:

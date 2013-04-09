@@ -135,8 +135,8 @@ class MainScreen:
 	def UserLogged(self):
 		return self.__isUserLogged()
 	
-	def UserInDebt(self):
-		return self.__isUserInDebt()
+	def UserAllowCredit(self):
+		return self.__userAllowCredit()
 	
 	###
 	### Private Functions
@@ -158,9 +158,9 @@ class MainScreen:
 		except AttributeError:
 			return True
 	
-	def __isUserInCredit(self):
+	def __userAllowCredit(self):
 		try:
-			return self.__user.getBalance() >= 0
+			return self.__user.creditAllowed()
 		except AttributeError:
 			return False
 	
@@ -252,15 +252,15 @@ class MainScreen:
 		
 		transAllowedState = self.__user.TransactionAllowed(self.newProduct.PriceEach)
 		
-		if transAllowedState == self.__user.ALLOWED:
+		if transAllowedState == self.__user.XACTION_ALLOWED:
 			## Add product, nothing else to do
 			self.gui.addToProductDisplay(self.newProduct)
-		elif transAllowedState == self.__user.OVERLIMIT:
+		elif transAllowedState == self.__user.XACTION_OVERLIMIT:
 			## Add product, but also warn about being over credit limit
 			self.gui.addToProductDisplay(self.newProduct)
 			self.gui.SetBannerWithTimeout("Warning: you have reached your credit limit!", 4, RGB_WARNING_FG, self.__bannerTimeout)
 			nextState = self.states.WARNING
-		elif transAllowedState == self.__user.DENIED:
+		elif transAllowedState == self.__user.XACTION_DENIED:
 			## Do not add the product to screen. Request removal from product list and warn user
 			self.gui.SetBannerWithTimeout("Sorry, you have reached your credit limit!", 4, RGB_ERROR_FG, self.__bannerTimeout)
 			self.ProductFuncs.RemoveProduct(self.newProduct)

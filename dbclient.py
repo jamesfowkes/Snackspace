@@ -27,14 +27,14 @@ class DbClient:
 	#	callback(reply, received, self.__connected)
 	
 	def GetProduct(self, barcode):
-		action = Packet("getproduct", {"barcode":barcode})
-		message = Message(action).GetXML()
+		packet = Packet("getproduct", {"barcode":barcode})
+		message = Message(packet).GetXML()
 		try:
 			reply, _recvd = self.__send(message)
 			reply = Message.ParseXML(reply)
 			reply = reply[0]
 			
-			if reply.Action == "productdata":
+			if reply.Type == "productdata":
 				desc = reply.Data['description']
 				priceinpence = reply.Data['priceinpence']
 				return (barcode, desc, priceinpence)
@@ -47,14 +47,14 @@ class DbClient:
 			return None
 		
 	def GetUserData(self, rfid):
-		action = Packet("getuser", {"rfid":rfid})
-		message = Message(action).GetXML()
+		packet = Packet("getuser", {"rfid":rfid})
+		message = Message(packet).GetXML()
 		try:
 			reply, _recvd = self.__send(message)
 			reply = Message.ParseXML(reply)
 			reply = reply[0]
 			
-			if reply.Action == "userdata":
+			if reply.Type == "userdata":
 				username = reply.Data['username']
 				balance = reply.Data['balance']
 				limit = reply.Data['limit']
@@ -77,8 +77,8 @@ class DbClient:
 		message = Message()
 		
 		for (barcode, count) in productdata:
-			action = Packet("transaction", {"barcode":barcode,"memberid":memberID, "count":count})
-			message.AddAction(action)
+			packet = Packet("transaction", {"barcode":barcode,"memberid":memberID, "count":count})
+			message.AddPacket(packet)
 		
 		try:
 			reply, _recvd = self.__send(message.GetXML())
@@ -88,8 +88,8 @@ class DbClient:
 			raise
 		
 	def AddProduct(self, barcode, description, priceinpence):
-		action = Packet("addproduct", {"barcode":barcode, "description":description, "priceinpence":priceinpence})
-		message = Message(action).GetXML()
+		packet = Packet("addproduct", {"barcode":barcode, "description":description, "priceinpence":priceinpence})
+		message = Message(packet).GetXML()
 		try:
 			reply, _recvd = self.__send(message)
 			reply = Message.ParseXML(reply)
@@ -97,11 +97,12 @@ class DbClient:
 			return None
 		
 	def AddCredit(self, memberID, amountinpence):
-		action = Packet("addcredit", {"memberID":memberID, "amountinpence":amountinpence})
-		message = Message(action).GetXML()
+		packet = Packet("addcredit", {"memberid":memberID, "amountinpence":amountinpence})
+		message = Message(packet).GetXML()
 		try:
 			reply, _recvd = self.__send(message)
 			reply = Message.ParseXML(reply)
+			return self.__addCreditSuccessful(reply)
 		except:
 			pass
 		
@@ -132,9 +133,9 @@ class DbClient:
 		reply, received = self.__send(message.GetXML())
 		
 		if received > 0:
-			actions = Message.ParseXML(reply)
+			packets = Message.ParseXML(reply)
 			
-			if actions[0].Action == 'pingreply':
+			if packets[0].Type == 'pingreply':
 				self.logger.info("Connected to remote server")
 				self.__foundServer = True
 			else:
@@ -193,22 +194,28 @@ class DbClient:
 	def __parseReply(self, message):
 		dom = parseString(message)
 	
-		actions = dom.getElementsByTagName('action')
+		packets = dom.getElementsByTagName('packet')
 		
-		for action in actions:
-			actiontype = action.attributes.getNamedItem("type").value
+		for packet in packets:
+			packettype = packet.attributes.getNamedItem("type").value
 				
-			if actiontype == "ping":
+			if packettype == "ping":
 				return Message("pingreply")
 	
 	def __transactionsSuccessful(self, reply):
 
 		success = True
 				
-		for action in reply:
-			if action.Action == "transaction":
-				success = success and (action.Data['result'] == "Success")
+		for packet in reply:
+			if packet.Type == "result" and packet.Data['action'] == "transaction":
+				success = success and (packet.Data['result'] == "Success")
 		
+		return success
+	
+	def __addCreditSuccessful(self, reply):
+
+		if reply.Type == "result" and reply.Data['action'] == "addcredit":
+			success = (reply.Data['result'] == "Success")
 		return success
 	##
 	## Property getters

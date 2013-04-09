@@ -56,9 +56,9 @@ class Server:
 
 	def HandleMessage(self, message, db):
 	
-		actions = Message.ParseXML(message)
+		packets = Message.ParseXML(message)
 		
-		reply = db.ProcessActions(actions)
+		reply = db.ProcessPackets(packets)
 		
 		return reply
 				

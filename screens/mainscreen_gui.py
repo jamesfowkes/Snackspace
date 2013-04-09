@@ -345,7 +345,7 @@ class MainScreenGUI(ScreenGUI):
 		]
 		
 		# Decide which objects should be shown
-		self.objects[self.PAY].visible = self.owner.UserLogged() and self.owner.UserInDebt()
+		self.objects[self.PAY].visible = self.owner.UserLogged() and self.owner.UserAllowCredit()
 		self.objects[self.DONE].visible = (len(self.productDisplays) > 0) and self.owner.UserLogged()
 		self.objects[self.UP].visible = self.testDisplayUpButton()
 		self.objects[self.DOWN].visible = self.testDisplayDownButton()

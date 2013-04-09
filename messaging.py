@@ -6,17 +6,17 @@ client and server
 
 The structure of the XML to be transferred is:
 <xml>
-	<action type="actiontype">
+	<packet type="packettype">
 		<datatype>data</datatype>
-	</action>
-	<action type="actiontype">
+	</packet>
+	<packet type="packettype">
 		<datatype>data</datatype>
-	</action>
+	</packet>
 	...
 </xml>
 
-Where actiontype is the action to carry out ("transaction", "getuser", "ping etc.)
-and datatype is the context of the data enclosed, e.g <barcode>12345</barcode>
+Where packettype is the context of the packet data("transaction", "getuser", "ping" etc.)
+and datatype is the context of the individual data items enclosed, e.g <barcode>12345</barcode>
 
 This file is responsible for pushing data to/from Python data structures and XML
 DOM objects.
@@ -31,16 +31,16 @@ class InputException(Exception):
 
 class Packet:
 	
-	def __init__(self, action, data_dict = None):
-		self.Action = action
+	def __init__(self, packettype, data_dict = None):
+		self.Type = packettype
 		self.Data = data_dict
 	
 	def addToDOM(self, dom):
 
-		## Create a new action DOM element at the root of the DOM
-		## with the specified action type and return the action DOM node
-		action_element = dom.createElement('action')
-		action_element.setAttribute('type', self.Action)
+		## Create a new packet DOM element at the root of the DOM
+		## with the specified packet type and return the packet DOM node
+		packet_element = dom.createElement('packet')
+		packet_element.setAttribute('type', self.Type)
 		
 		
 		try:
@@ -52,39 +52,39 @@ class Packet:
 				data_element = dom.createElement(datatype)
 				text_node = dom.createTextNode(str(data))
 				data_element.appendChild(text_node)
-				action_element.appendChild(data_element)
+				packet_element.appendChild(data_element)
 		except AttributeError:
 			pass #data might be None - this is fine
 		
-		dom.childNodes[0].appendChild(action_element)
+		dom.childNodes[0].appendChild(packet_element)
 	
 	@classmethod
-	def fromDOMActionElement(cls, ele):
+	def fromDOMPacketElement(cls, ele):
 			
-		actiontype = ele.attributes.getNamedItem("type").value
+		packettype = ele.attributes.getNamedItem("type").value
 		data_dict = {}
 			
 		for node in ele.childNodes:
 			data_dict[node.localName] = node.firstChild.nodeValue
 			
-		return cls(actiontype, data_dict)
+		return cls(packettype, data_dict)
 		
 class Message:
 
-	def __init__(self, action = None, debugme = False):
+	def __init__(self, packet = None, debugme = False):
 		self.debugme = debugme
 		self.Clear()
-		self.__actions = []
+		self.__packets = []
 		
-		if isinstance(action, list):
-			self.__actions = action
-		elif isinstance(action, Packet):
-			self.__actions = [action]
-		elif isinstance(action, str):
-			self.__actions = [Packet(action)]
+		if isinstance(packet, list):
+			self.__packets = packet
+		elif isinstance(packet, Packet):
+			self.__packets = [packet]
+		elif isinstance(packet, str):
+			self.__packets = [Packet(packet)]
 		
-	def AddAction(self, action):
-		self.__actions.append(action)
+	def AddPacket(self, packet):
+		self.__packets.append(packet)
 			
 	def GetXML(self):
 		self.__buildXML()
@@ -94,19 +94,18 @@ class Message:
 		impl = getDOMImplementation()
 		self.doc = impl.createDocument(None, "xml", None)
 		
-		## data_list is list of dictionaries representing each
-		## instance of the action
-		for action in self.__actions:
-			action.addToDOM(self.doc)
+		## Let each packet add itself to the DOM tree
+		for packet in self.__packets:
+			packet.addToDOM(self.doc)
 			
 	def Clear(self):
-		self.__actions = {}
+		self.__packets = {}
 		self.doc = None
 			
 	@staticmethod
 	def ParseXML(xml, debugme = False):
 		
-		actionlist = []
+		packetlist = []
 		
 		if len(xml):
 			try:
@@ -114,14 +113,14 @@ class Message:
 					print "Parsing %s" % xml
 				
 				dom = parseString(xml)
-				actions = dom.getElementsByTagName('action')
+				packets = dom.getElementsByTagName('packet')
 				
-				for action in actions:
-					actionlist.append( Packet.fromDOMActionElement(action) )
+				for packet in packets:
+					packetlist.append( Packet.fromDOMPacketElement(packet) )
 
 			except:
 				raise
 		else:
 			raise InputException
 
-		return actionlist
+		return packetlist
