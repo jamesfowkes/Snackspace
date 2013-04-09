@@ -2,6 +2,8 @@ import socket
 
 import argparse #@UnresolvedImport
 
+import ConfigParser
+
 import logging
 
 from dblocal import DbLocal
@@ -59,17 +61,35 @@ class Server:
 		reply = db.ProcessActions(actions)
 		
 		return reply
-		
-			
+				
 def main(argv = None):
 	
-	parser = argparse.ArgumentParser(description='Snackspace Server')
-	parser.add_argument('-L', dest='localmode', nargs='?',default='n', const='y')
+	## Read arguments from command line
+	argparser = argparse.ArgumentParser(description='Snackspace Server')
+	argparser.add_argument('--file', dest='conffile', nargs='?',default='')
+	argparser.add_argument('-L', dest='localmode', nargs='?',default='n', const='y')
+	
+	args = argparser.parse_args()
+	
+	## Read arguments from configuration file
+	try:
+		confparser = ConfigParser.ConfigParser()
+		confparser.readfp(open(args.conffile))
 		
-	args = parser.parse_args()
-
-	db = DbLocal(args.localmode == 'y');
-	__server = Server(args.localmode == 'y', db)
+	except IOError:
+		## Configuration file does not exist, or no filename supplied
+		confparser = None
+		pass
+	
+	if confparser is None:
+		## Use command line options
+		localmode = args.localmode == 'y'
+	else:
+		## Use configuration file options:
+		localmode = confparser.get('ServerConfig','localmode') == 'y'
+		
+	db = DbLocal(localmode);
+	__server = Server(localmode, db)
 
 	
 if __name__ == "__main__":

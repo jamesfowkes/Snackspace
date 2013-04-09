@@ -3,6 +3,8 @@ import pygame
 
 import argparse #@UnresolvedImport
 
+import ConfigParser
+
 import logging
 
 import time
@@ -24,7 +26,7 @@ from screens.mainscreen import MainScreen
 #from screens.productentry import ProductEntry
 
 class Snackspace:
-	def __init__(self, window, size, localdb, rfid_port=None):
+	def __init__(self, window, size, localdb, rfid_port=None, limitbehaviour='ignore'):
 		
 		self.inittime = int(time.time())
 		
@@ -34,7 +36,8 @@ class Snackspace:
 		
 		self.localdb = localdb
 		self.rfid_port = rfid_port
-
+		self.limitBehaviour = limitbehaviour
+		
 		self.__setConstants__()
 		
 		self.__setVariables__()
@@ -104,8 +107,8 @@ class Snackspace:
 				if self.rfid is not None:
 					rfid = self.rfid.PollForCardID()
 				else:
-					rfid = self.fakeRFID
-					self.fakeRFID = []
+					rfid = self.dummyRFID
+					self.dummyRFID = []
 					
 				if len(rfid):
 					self.__onSwipeEvent__(self.__mangleRFID__(rfid))
@@ -139,7 +142,7 @@ class Snackspace:
 		elif (event.key == pygame.K_u) and (pygame.key.get_mods() & pygame.KMOD_CTRL):
 			## Fake an RFID swipe
 			if self.rfid is None:
-				self.fakeRFID = [0x1B, 0x7F, 0x2D, 0x2D]
+				self.dummyRFID = [0x1B, 0x7F, 0x2D, 0x2D]
 			
 			
 					
@@ -147,7 +150,7 @@ class Snackspace:
 		userdata = self.dbaccess.GetUserData(cardnumber)
 		
 		if userdata is not None:
-			self.user = User(*userdata)
+			self.user = User(*userdata, limitBehaviour=self.limitBehaviour)
 			self.logger.info("Got user %s" % self.user.Name)
 		else:
 			self.logger.info("Bad RFID %s" % cardnumber)
@@ -204,11 +207,11 @@ class Snackspace:
 		
 		self.logger = logging.getLogger("snackspace")
 		
-		if self.rfid_port != 'fake':
+		if self.rfid_port != 'dummy':
 			self.rfid = RFIDReader(self.rfid_port);
 		else:
 			self.rfid = None
-			self.fakeRFID = []
+			self.dummyRFID = []
 
 		self.user = None
 		self.products = []
@@ -279,11 +282,23 @@ class Snackspace:
 	
 def main(argv=None):
 
-	parser = argparse.ArgumentParser(description='Snackspace Server')
-	parser.add_argument('-L', dest='localmode', nargs='?', default='n', const='y')
-	parser.add_argument('-P', dest='rfid_port', nargs='?', default='/dev/ttyUSB0')
+	argparser = argparse.ArgumentParser(description='Snackspace Server')
+	argparser.add_argument('-L', dest='localMode', nargs='?', default='n', const='y')
+	argparser.add_argument('-P', dest='rfidPort', nargs='?', default='/dev/ttyUSB0')
+	argparser.add_argument('--onlimit', dest='limitBehaviour', nargs='?', default='ignore')
+	argparser.add_argument('--file', dest='conffile', nargs='?',default='')
 	
-	args = parser.parse_args()
+	args = argparser.parse_args()
+	
+	## Read arguments from configuration file
+	try:
+		confparser = ConfigParser.ConfigParser()
+		confparser.readfp(open(args.conffile))
+		
+	except IOError:
+		## Configuration file does not exist, or no filename supplied
+		confparser = None
+		pass
 	
 	pygame.init()
 	
@@ -291,7 +306,16 @@ def main(argv=None):
 	
 	window = pygame.display.set_mode(size)
 	
-	s = Snackspace(window, size, args.localmode == 'y', args.rfid_port)
+	if confparser is None:
+		localMode = args.localMode = 'y'
+		rfidPort = args.rfidPort
+		limitBehaviour = args.limitBehaviour
+	else:
+		localMode = confparser.get('ClientConfig','localmode') == 'y'
+		rfidPort = confparser.get('ClientConfig','rfidport')
+		limitBehaviour = confparser.get('ClientConfig','limitbehaviour')
+	
+	s = Snackspace(window, size, localMode, rfidPort, limitBehaviour)
 	
 	logging.basicConfig(level=logging.DEBUG)
 

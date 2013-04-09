@@ -3,8 +3,8 @@ import sqlsoup #@UnresolvedImport
 import urllib
 import re
 
-testDbPath = "server/data/test.db"
-testDataPath = "server/data/test_data.sql"
+testDbPath = "data/test.db"
+testDataPath = "data/test_data.sql"
 
 onlineSqlUrl = 'https://nottinghack-instrumentation.googlecode.com/svn/db/'
 

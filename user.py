@@ -1,14 +1,31 @@
 class User:
 	
-	def __init__(self, member_id, username, balance, limit):
+	
+	def __init__(self, member_id, username, balance, limit, limitBehaviour):
 		
 		self.__name = username
 		self.__balance = int(balance)
 		self.__limit = int(limit)
 		self.__memberID = member_id
+		self.__limitBehaviour = limitBehaviour
+	
+	## Transaction allowed return values
+	ALLOWED = 0
+	OVERLIMIT = 1
+	DENIED = 2
 		
 	def TransactionAllowed(self, priceinpence):
-		return ((self.__balance - self.__limit) > priceinpence)
+	
+		overLimit = (self.__balance - priceinpence < self.__limit) 	
+		transactionState = self.ALLOWED
+		
+		if overLimit:
+			if self.__limitBehaviour == 'warn':
+				transactionState = self.OVERLIMIT
+			elif self.__limitBehaviour == 'deny':
+				transactionState = self.DENIED
+		
+		return transactionState
 	
 	##
 	## Property getters

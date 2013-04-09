@@ -79,8 +79,8 @@ class MainScreen:
 		
 		self.gui = MainScreenGUI(width, height, self)
 		
-		self.__setConstants__()
-		self.__setVariables__()
+		self.__setConstants()
+		self.__setVariables()
 		
 		self.ProductFuncs = productFuncs
 		self.ScreenFuncs = screenFuncs
@@ -130,65 +130,65 @@ class MainScreen:
 			self.SM.onStateEvent(self.events.BADRFID)
 	
 	def TotalPrice(self):
-		return self.__totalPrice__()
+		return self.__totalPrice()
 	
 	def UserLogged(self):
-		return self.__isUserLogged__()
+		return self.__isUserLogged()
 	
 	def UserInDebt(self):
-		return self.__isUserInDebt__()
+		return self.__isUserInDebt()
 	
 	###
 	### Private Functions
 	###
 	
-	def __totalPrice__(self):
+	def __totalPrice(self):
 		return self.ProductFuncs.TotalPrice()
 	
-	def __requestRedraw__(self):
+	def __requestRedraw(self):
 		self.ScreenFuncs.RequestScreen(Screens.MAINSCREEN, Requests.MAIN, True)
 		return self.states.IDLE
 	
-	def __isUserLogged__(self):
-		return self.__user__()
+	def __isUserLogged(self):
+		return self.__user
 	
-	def __isUserInDebt__(self):
+	def __isUserInDebt(self):
 		try:
-			return self.__user__().getBalance() < 0
+			return self.__user.getBalance() < 0
 		except AttributeError:
 			return True
 	
-	def __isUserInCredit__(self):
+	def __isUserInCredit(self):
 		try:
-			return self.__user__().getBalance() >= 0
+			return self.__user.getBalance() >= 0
 		except AttributeError:
 			return False
 	
-	def __setVariables__(self):
+	def __setVariables(self):
 		
 		self.SM = SimpleStateMachine(self.states.INACTIVE,
 		[
-			SimpleStateMachineEntry(self.states.INACTIVE, self.events.SCAN, 		self.__onIdleScanEvent__),
-			SimpleStateMachineEntry(self.states.INACTIVE, self.events.BADSCAN, 		self.__onIdleBadScanEvent__),
-			SimpleStateMachineEntry(self.states.INACTIVE, self.events.RFID, 		self.__onRFIDEvent__),
-			SimpleStateMachineEntry(self.states.INACTIVE, self.events.BADRFID, 		self.__onBadRFIDEvent__),
-			SimpleStateMachineEntry(self.states.INACTIVE, self.events.GUIEVENT, 	self.__onIdleGuiEvent__),
+			SimpleStateMachineEntry(self.states.INACTIVE, self.events.SCAN, 		self.__onIdleScanEvent),
+			SimpleStateMachineEntry(self.states.INACTIVE, self.events.BADSCAN, 		self.__onIdleBadScanEvent),
+			SimpleStateMachineEntry(self.states.INACTIVE, self.events.RFID, 		self.__onRFIDEvent),
+			SimpleStateMachineEntry(self.states.INACTIVE, self.events.BADRFID, 		self.__onBadRFIDEvent),
+			SimpleStateMachineEntry(self.states.INACTIVE, self.events.GUIEVENT, 	self.__onIdleGuiEvent),
 			
-			SimpleStateMachineEntry(self.states.IDLE, self.events.GUIEVENT, 		self.__onIdleGuiEvent__),
-			SimpleStateMachineEntry(self.states.IDLE, self.events.SCAN, 			self.__onIdleScanEvent__),
-			SimpleStateMachineEntry(self.states.IDLE, self.events.BADSCAN, 			self.__onIdleBadScanEvent__),
-			SimpleStateMachineEntry(self.states.IDLE, self.events.RFID, 			self.__onRFIDEvent__),
-			SimpleStateMachineEntry(self.states.IDLE, self.events.BADRFID, 			self.__onBadRFIDEvent__),
-			SimpleStateMachineEntry(self.states.IDLE, self.events.PRODUCTUPDATED, 		self.__requestRedraw__),
+			SimpleStateMachineEntry(self.states.IDLE, self.events.GUIEVENT, 		self.__onIdleGuiEvent),
+			SimpleStateMachineEntry(self.states.IDLE, self.events.SCAN, 			self.__onIdleScanEvent),
+			SimpleStateMachineEntry(self.states.IDLE, self.events.BADSCAN, 			self.__onIdleBadScanEvent),
+			SimpleStateMachineEntry(self.states.IDLE, self.events.RFID, 			self.__onRFIDEvent),
+			SimpleStateMachineEntry(self.states.IDLE, self.events.BADRFID, 			self.__onBadRFIDEvent),
+			SimpleStateMachineEntry(self.states.IDLE, self.events.PRODUCTUPDATED, 		self.__requestRedraw),
 									
-			SimpleStateMachineEntry(self.states.PAYMENTMESSAGE,	 self.events.BANNERTIMEOUT,	self.__returnToIntro__),
+			SimpleStateMachineEntry(self.states.PAYMENTMESSAGE,	 self.events.BANNERTIMEOUT,	self.__returnToIntro),
 								
-			SimpleStateMachineEntry(self.states.WARNING, self.events.BANNERTIMEOUT, self.__removeWarning__),
-			SimpleStateMachineEntry(self.states.WARNING, self.events.SCAN, 			self.__onIdleScanEvent__),
-			SimpleStateMachineEntry(self.states.WARNING, self.events.BADSCAN, 		self.__updateBarcodeWarning__),
-			SimpleStateMachineEntry(self.states.WARNING, self.events.RFID, 			self.__onRFIDEvent__),
-			SimpleStateMachineEntry(self.states.WARNING, self.events.BADRFID, 		self.__onBadRFIDEvent__),
-			SimpleStateMachineEntry(self.states.WARNING, self.events.GUIEVENT, 		self.__removeWarning__),
+			SimpleStateMachineEntry(self.states.WARNING, self.events.BANNERTIMEOUT, self.__removeWarning),
+			SimpleStateMachineEntry(self.states.WARNING, self.events.SCAN, 			self.__onIdleScanEvent),
+			SimpleStateMachineEntry(self.states.WARNING, self.events.BADSCAN, 		self.__updateBarcodeWarning),
+			SimpleStateMachineEntry(self.states.WARNING, self.events.RFID, 			self.__onRFIDEvent),
+			SimpleStateMachineEntry(self.states.WARNING, self.events.BADRFID, 		self.__onBadRFIDEvent),
+			SimpleStateMachineEntry(self.states.WARNING, self.events.GUIEVENT, 		self.__removeWarning),
 
 		])
 									
@@ -196,11 +196,11 @@ class MainScreen:
 		
 		self.acceptInput = True
 		
-	def __setConstants__(self):
+	def __setConstants(self):
 		self.states = Enum(["INACTIVE", "IDLE", "NUMERIC", "PAYMENTMESSAGE", "WARNING"])
 		self.events = Enum(["GUIEVENT", "SCAN", "BADSCAN", "RFID", "BADRFID", "PRODUCTUPDATED", "BANNERTIMEOUT"])
 
-	def __onIdleGuiEvent__(self):
+	def __onIdleGuiEvent(self):
 		
 		pos = self.lastGuiPosition
 		button = self.gui.getObjectId(pos)
@@ -212,10 +212,10 @@ class MainScreen:
 			self.gui.playSound()
 			
 		if (button == self.gui.DONE):
-			nextState = self.__chargeUser__()	
+			nextState = self.__chargeUser()	
 			
 		if (button == self.gui.CANCEL):
-			nextState = self.__returnToIntro__()
+			nextState = self.__returnToIntro()
 			
 		if (button == self.gui.PAY):
 			nextState = self.states.NUMERIC
@@ -223,11 +223,11 @@ class MainScreen:
 		
 		if (button == self.gui.DOWN):
 			self.gui.moveDown()
-			self.__requestRedraw__()
+			self.__requestRedraw()
 			
 		if (button == self.gui.UP):
 			self.gui.moveUp()
-			self.__requestRedraw__()
+			self.__requestRedraw()
 			
 		if (button == self.gui.REMOVE):
 					
@@ -238,11 +238,11 @@ class MainScreen:
 				# No products of this type left in list
 				self.gui.removeProduct(product)
 
-			self.__requestRedraw__()
+			self.__requestRedraw()
 			
 		return nextState
 	
-	def __onIdleScanEvent__(self):
+	def __onIdleScanEvent(self):
 		
 		self.logger.info("Got barcode %s" % self.newProduct.Barcode)
 		
@@ -251,79 +251,89 @@ class MainScreen:
 		
 		nextState = self.states.IDLE
 		
-		if self.__user__().TransactionAllowed(self.newProduct.PriceEach):
+		transAllowedState = self.__user.TransactionAllowed(self.newProduct.PriceEach)
+		
+		if transAllowedState == self.__user.ALLOWED:
+			## Add product, nothing else to do
 			self.gui.addToProductDisplay(self.newProduct)
-		else:
-			self.gui.SetBannerWithTimeout("You have reached your credit limit!", 4, RGB_WARNING_FG, self.__bannerTimeout__)
+		elif transAllowedState == self.__user.OVERLIMIT:
+			## Add product, but also warn about being over credit limit
+			self.gui.addToProductDisplay(self.newProduct)
+			self.gui.SetBannerWithTimeout("Warning: you have reached your credit limit!", 4, RGB_WARNING_FG, self.__bannerTimeout)
+			nextState = self.states.WARNING
+		elif transAllowedState == self.__user.DENIED:
+			## Do not add the product to screen. Request removal from product list and warn user
+			self.gui.SetBannerWithTimeout("Sorry, you have reached your credit limit!", 4, RGB_ERROR_FG, self.__bannerTimeout)
 			self.ProductFuncs.RemoveProduct(self.newProduct)
 			nextState = self.states.WARNING
 			
-		self.__requestRedraw__()
+		self.__requestRedraw()
 		self.newProduct = None
 		
 		return nextState
 	
-	def __onIdleBadScanEvent__(self):
+	def __onIdleBadScanEvent(self):
 		
 		self.logger.info("Got unrecognised barcode %s" % self.badcode)
-		self.gui.SetBannerWithTimeout("Unknown barcode: '%s'" % self.badcode, 4, RGB_WARNING_FG, self.__bannerTimeout__)
-		self.__requestRedraw__()
+		self.gui.SetBannerWithTimeout("Unknown barcode: '%s'" % self.badcode, 4, RGB_ERROR_FG, self.__bannerTimeout)
+		self.__requestRedraw()
 		self.badcode = ""
 		
 		return self.states.WARNING
 	
-	def __onRFIDEvent__(self):
+	def __onRFIDEvent(self):
 	
-		self.logger.info("Got user %s" % self.__user__().Name)
+		self.logger.info("Got user %s" % self.__user.Name)
 		self.gui.HideBanner()
-		self.gui.setUser(self.__user__().Name, self.__user__().Balance)		
-		self.__requestRedraw__()
+		self.gui.setUser(self.__user.Name, self.__user.Balance)		
+		self.__requestRedraw()
 		
 		return self.SM.state
 
-	def __onBadRFIDEvent__(self):
+	def __onBadRFIDEvent(self):
 	
-		self.gui.SetBannerWithTimeout("Unknown RFID card!", 4, RGB_WARNING_FG, self.__bannerTimeout__)
+		self.gui.SetBannerWithTimeout("Unknown RFID card!", 4, RGB_ERROR_FG, self.__bannerTimeout)
 		
-		self.__requestRedraw__()
+		self.__requestRedraw()
 		
 		return self.states.WARNING
 	
-	def __bannerTimeout__(self):
+	def __bannerTimeout(self):
 		self.SM.onStateEvent(self.events.BANNERTIMEOUT)
 	
-	def __updateBarcodeWarning__(self):
+	def __updateBarcodeWarning(self):
 		self.logger.info("Got unrecognised barcode %s" % self.badcode)
-		self.gui.SetBannerWithTimeout("Unknown barcode: '%s'" % self.badcode, 4, RGB_WARNING_FG, self.__bannerTimeout__)
-		self.__requestRedraw__()
+		self.gui.SetBannerWithTimeout("Unknown barcode: '%s'" % self.badcode, 4, RGB_ERROR_FG, self.__bannerTimeout)
+		self.__requestRedraw()
 		return self.states.WARNING
 	
-	def __removeWarning__(self):
+	def __removeWarning(self):
 		self.gui.HideBanner()
-		self.__requestRedraw__()
+		self.__requestRedraw()
 		return self.states.IDLE
 		
-	def __returnToIntro__(self):
+	def __returnToIntro(self):
 		self.clearAll()
 		self.ScreenFuncs.RequestScreen(Screens.MAINSCREEN, Requests.INTRO, False)
 		return self.states.INACTIVE
 	
-	def __chargeUser__(self):
+	def __chargeUser(self):
 		self.acceptInput = False
 		
 		nextState = self.states.PAYMENTMESSAGE
 		
-		amountinpounds = self.__totalPrice__() / 100
+		amountinpounds = self.__totalPrice() / 100
 		
 		if self.UserFuncs.ChargeAll() == True:
-			self.gui.SetBannerWithTimeout("Thank you! You have been charged \xA3%.2f" % amountinpounds, 8, RGB_INFO_FG, self.__bannerTimeout__)
+			self.gui.SetBannerWithTimeout("Thank you! You have been charged \xA3%.2f" % amountinpounds, 8, RGB_INFO_FG, self.__bannerTimeout)
 		else:
-			self.gui.SetBannerWithTimeout("An error occurred and has been logged.", 10, RGB_WARNING_FG, self.__bannerTimeout__)
+			self.gui.SetBannerWithTimeout("An error occurred and has been logged.", 10, RGB_ERROR_FG, self.__bannerTimeout)
 			self.logger.error("Failed to charge user %s %d pence")
 
-		self.__requestRedraw__()
+		self.__requestRedraw()
 		
 		return nextState
 	
-	def __user__(self):
+	@property
+	def __user(self):
 		return self.UserFuncs.Get()
