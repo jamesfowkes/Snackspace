@@ -197,7 +197,7 @@ class MainScreen:
 		self.acceptInput = True
 		
 	def __setConstants(self):
-		self.states = Enum(["INACTIVE", "IDLE", "NUMERIC", "PAYMENTMESSAGE", "WARNING"])
+		self.states = Enum(["INACTIVE", "IDLE", "PAYMENTMESSAGE", "WARNING"])
 		self.events = Enum(["GUIEVENT", "SCAN", "BADSCAN", "RFID", "BADRFID", "PRODUCTUPDATED", "BANNERTIMEOUT"])
 
 	def __onIdleGuiEvent(self):
@@ -218,7 +218,6 @@ class MainScreen:
 			nextState = self.__returnToIntro()
 			
 		if (button == self.gui.PAY):
-			nextState = self.states.NUMERIC
 			self.ScreenFuncs.RequestScreen(Screens.MAINSCREEN, Requests.PAYMENT, False)
 		
 		if (button == self.gui.DOWN):

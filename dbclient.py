@@ -10,7 +10,7 @@ from xml.dom.minidom import parseString
 class TimeoutException(Exception): 
 	pass 
 
-class DbRemote:
+class DbClient:
 
 	def __init__(self, local):
 		
@@ -122,7 +122,7 @@ class DbRemote:
 			self.server_address = ''
 		
 		logging.basicConfig(level=logging.DEBUG)
-		self.logger = logging.getLogger("RemoteDB")
+		self.logger = logging.getLogger("DBClient")
 		
 	def __testConnection(self):
 		## Assume we are connected initially

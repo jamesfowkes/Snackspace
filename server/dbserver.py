@@ -4,7 +4,7 @@ import logging
 
 from db import db
 
-class DbLocal:
+class DbServer:
 
 	def __init__(self, useTestDb):
 		

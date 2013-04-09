@@ -18,7 +18,7 @@ from constants import Requests, Screens
 from product import Product
 from user import User
 
-from dbremote import DbRemote
+from dbclient import DbClient
 
 from screens.introscreen import IntroScreen
 from screens.numericentry import NumericEntry
@@ -38,26 +38,27 @@ class Snackspace:
 		self.rfid_port = rfid_port
 		self.limitBehaviour = limitbehaviour
 		
-		self.__setConstants__()
+		self.__setConstants()
 		
-		self.__setVariables__()
+		self.__setVariables()
 		
 		self.ScreenFunctions = Bunch(
-			RequestScreen = self.__RequestScreen__)		
+			RequestScreen = self.__RequestScreen)		
 	
 		self.UserFunctions = Bunch(
 			Get=lambda: self.user,
-			ChargeAll = self.__ChargeAll__,
-			PayDebt = self.__CreditUser__,
-			Forget = self.__ForgetUser__
+			ChargeAll = self.__ChargeAll,
+			PayDebt = self.__CreditUser,
+			Forget = self.__ForgetUser
 			)
 		
 		self.ProductFunctions = Bunch(
-			RequestAllProducts = self.__RequestAllProducts__,
-			TotalPrice = self.__TotalPrice__,
-			RemoveProduct = self.__RemoveProduct__,
-			RemoveAll = self.__RemoveAllProducts__,
-			NewProducts = self.__NewProducts__)
+			RequestAllProducts = self.__RequestAllProducts,
+			TotalPrice = self.__TotalPrice,
+			RemoveProduct = self.__RemoveProduct,
+			RemoveAll = self.__RemoveAllProducts,
+			NewProducts = self.__NewProducts
+			)
 		
 		# Instantiate all the screens now
 		self.screens = {
@@ -72,14 +73,14 @@ class Snackspace:
 		self.screens[Screens.MAINSCREEN.value].acceptGUIEvents = True
 		
 		self.currentscreen = Screens.BLANKSCREEN
-		self.__setScreen__(Screens.INTROSCREEN, False)
+		self.__setScreen(Screens.INTROSCREEN, False)
 		
 		if not self.dbaccess.isConnected:
 			self.logger.warning("Could not find remote database")
 			self.screens[Screens.INTROSCREEN.value].setIntroText(
 				"ERROR: Cannot access Snackspace remote database",
 				(0xFF, 0, 0))
-			self.__setScreen__(Screens.INTROSCREEN, True)
+			self.__setScreen(Screens.INTROSCREEN, True)
 		else:
 			self.logger.info("Found remote database")
 			self.screens[Screens.INTROSCREEN.value].acceptGUIEvents = True
@@ -99,7 +100,7 @@ class Snackspace:
 						if "OnGuiEvent" in dir(self.screens[self.currentscreen.value]):
 							raise  # # Only raise error if the OnGuiEvent method exists
 				if event.type == pygame.KEYDOWN:
-					self.__inputHandler__(event)
+					self.__inputHandler(event)
 			
 			if (pygame.time.get_ticks() - ticks) > 1000:
 				ticks = pygame.time.get_ticks()
@@ -111,9 +112,9 @@ class Snackspace:
 					self.dummyRFID = []
 					
 				if len(rfid):
-					self.__onSwipeEvent__(self.__mangleRFID__(rfid))
+					self.__onSwipeEvent(self.__mangleRFID(rfid))
 	
-	def __mangleRFID__(self, rfid):
+	def __mangleRFID(self, rfid):
 		
 		mangled = ""
 		
@@ -123,7 +124,7 @@ class Snackspace:
 		print mangled
 		return mangled 
 		
-	def __inputHandler__(self, event):
+	def __inputHandler(self, event):
 		if (event.key in self.validKeys):
 			#Add new keypress to buffer
 			self.scannedinput += event.dict['unicode']
@@ -131,13 +132,13 @@ class Snackspace:
 		elif (event.key == pygame.K_RETURN):
 			## Buffer is complete, process it
 			self.logger.info("Got raw input '%s'" % self.scannedinput)
-			self.__onScanEvent__(self.scannedinput)
+			self.__onScanEvent(self.scannedinput)
 			
 			self.scannedinput = ''
 				
 		elif (event.key == pygame.K_a) and (pygame.key.get_mods() & pygame.KMOD_CTRL):
 			## Go to product entry screen
-			self.__RequestScreen__(Screens.MAINSCREEN, Requests.PRODUCTS, False)
+			self.__RequestScreen(Screens.MAINSCREEN, Requests.PRODUCTS, False)
 			
 		elif (event.key == pygame.K_u) and (pygame.key.get_mods() & pygame.KMOD_CTRL):
 			## Fake an RFID swipe
@@ -146,7 +147,7 @@ class Snackspace:
 			
 			
 					
-	def __onSwipeEvent__(self, cardnumber):
+	def __onSwipeEvent(self, cardnumber):
 		userdata = self.dbaccess.GetUserData(cardnumber)
 		
 		if userdata is not None:
@@ -169,9 +170,9 @@ class Snackspace:
 					if "OnBadRFID" in dir(screen):
 						raise  # # Only raise error if the method exists
 			
-	def __onScanEvent__(self, barcode):
+	def __onScanEvent(self, barcode):
 		
-		newproduct = self.__AddProduct__(barcode)
+		newproduct = self.__AddProduct(barcode)
 		
 		if newproduct is not None:
 			for screen in self.screens.values():
@@ -188,22 +189,22 @@ class Snackspace:
 					if "OnBadScan" in dir(screen):
 						raise  # # Only raise error if the method exists
 					
-	def __setScreen__(self, newscreen, force):	
+	def __setScreen(self, newscreen, force):	
 		if (newscreen.value != self.currentscreen.value or force):
 			self.logger.info("Changing screen from %s to %s" % (self.currentscreen.str, newscreen.str))
 			self.currentscreen = newscreen
 			self.screens[newscreen.value].draw(self.window)
 				
-	def __setConstants__(self):
+	def __setConstants(self):
 		self.validKeys = [
 			pygame.K_0, pygame.K_1, 	pygame.K_2, pygame.K_3, pygame.K_4,
 			pygame.K_5, pygame.K_6, 	pygame.K_7, pygame.K_8, pygame.K_9
 		]
 	
-	def __setVariables__(self):
+	def __setVariables(self):
 		self.scannedinput = ''
 		
-		self.dbaccess = DbRemote(self.localdb)
+		self.dbaccess = DbClient(self.localdb)
 		
 		self.logger = logging.getLogger("snackspace")
 		
@@ -216,36 +217,36 @@ class Snackspace:
 		self.user = None
 		self.products = []
 		
-	def __RequestScreen__(self, currentscreenid, request, force):
+	def __RequestScreen(self, currentscreenid, request, force):
 		if request == Requests.MAIN:
-			self.__setScreen__(Screens.MAINSCREEN, force)
+			self.__setScreen(Screens.MAINSCREEN, force)
 		elif request == Requests.PAYMENT:
-			self.__setScreen__(Screens.NUMERICENTRY, force)
+			self.__setScreen(Screens.NUMERICENTRY, force)
 		elif request == Requests.INTRO:
-			self.__setScreen__(Screens.INTROSCREEN, force)
+			self.__setScreen(Screens.INTROSCREEN, force)
 		elif request == Requests.PRODUCTS:
-			self.__setScreen__(Screens.PRODUCTENTRY, force)
+			self.__setScreen(Screens.PRODUCTENTRY, force)
 				
-	def __ChargeAll__(self):
+	def __ChargeAll(self):
 		if self.user is not None:
 			products = [(product.Barcode, product.Count) for product in self.products]
 			return self.dbaccess.SendTransactions(products, self.user.MemberID)
 		else:
 			return False
 		
-	def __CreditUser__(self, amount):
+	def __CreditUser(self, amount):
 		self.dbaccess.AddCredit(self.user.MemberID, amount)
 	
-	def __ForgetUser__(self):
+	def __ForgetUser(self):
 		self.user = None
 					
-	def __RequestUser__(self):
+	def __RequestUser(self):
 		return None
 	
-	def __RequestAllProducts__(self):
+	def __RequestAllProducts(self):
 		return None
 		
-	def __AddProduct__(self, barcode):
+	def __AddProduct(self, barcode):
 		
 		product = next((product for product in self.products if barcode == product.Barcode), None)
 		
@@ -264,20 +265,20 @@ class Snackspace:
 			
 		return product
 		
-	def __TotalPrice__(self):
+	def __TotalPrice(self):
 		return sum([product.TotalPrice for product in self.products])
 		
-	def __RemoveProduct__(self, productToRemove):
+	def __RemoveProduct(self, productToRemove):
 		
 		if productToRemove.Decrement() == 0:
 			self.products = [product for product in self.products if product != productToRemove]
 				
 		return productToRemove.Count
 		
-	def __RemoveAllProducts__(self):
+	def __RemoveAllProducts(self):
 		self.products = []
 
-	def __NewProducts__(self, productlist):
+	def __NewProducts(self, productlist):
 		pass
 	
 def main(argv=None):

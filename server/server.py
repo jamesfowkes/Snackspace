@@ -6,7 +6,7 @@ import ConfigParser
 
 import logging
 
-from dblocal import DbLocal
+from dbserver import DbServer
 from messaging import Message
 
 class Server:
@@ -88,7 +88,7 @@ def main(argv = None):
 		## Use configuration file options:
 		localmode = confparser.get('ServerConfig','localmode') == 'y'
 		
-	db = DbLocal(localmode);
+	db = DbServer(localmode);
 	__server = Server(localmode, db)
 
 	

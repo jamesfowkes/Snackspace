@@ -65,7 +65,7 @@ class NumericEntry:
 			self.ScreenFuncs.RequestScreen(Screens.NUMERICENTRY, Requests.PAYMENT, True)
 		
 	def __chargeAndExit(self):
-		self.UserFuncs.CreditUser(self.amountinpence)
+		self.UserFuncs.PayDebt(self.amountinpence)
 		self.__exit()
 		
 	def __exit(self):
