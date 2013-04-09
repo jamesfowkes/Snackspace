@@ -1,3 +1,7 @@
 ## Ignore compiled Python files
 *.pyc
 
+## Ignore the test database file
+test_data.sql
+
+
