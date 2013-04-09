@@ -6,6 +6,10 @@ class User:
 		self.__balance = int(balance)
 		self.__limit = int(limit)
 		self.__memberID = member_id
+		
+	def TransactionAllowed(self, priceinpence):
+		return ((self.__balance - self.__limit) > priceinpence)
+	
 	##
 	## Property getters
 	##

@@ -7,7 +7,7 @@ INSERT INTO 'members' ('member_id','name','balance','credit_limit') VALUES (6, '
 INSERT INTO 'members' ('member_id','name','balance','credit_limit') VALUES (7, 'Hoyt Kinney',-444,-2401);
 INSERT INTO 'members' ('member_id','name','balance','credit_limit') VALUES (8, 'Chantale Cash',657,-3756);
 INSERT INTO 'members' ('member_id','name','balance','credit_limit') VALUES (9, 'Ralph Knight',-49,-2534);
-INSERT INTO 'members' ('member_id','name','balance','credit_limit') VALUES (10, 'James Fowkes',5000,-5000);
+INSERT INTO 'members' ('member_id','name','balance','credit_limit') VALUES (10, 'James Fowkes',-4000,-5000);
 
 INSERT INTO 'rfid_tags' ('member_id', 'rfid_serial') VALUES  (1, '11');
 INSERT INTO 'rfid_tags' ('member_id', 'rfid_serial') VALUES  (2, '22');

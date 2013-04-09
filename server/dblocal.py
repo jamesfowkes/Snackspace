@@ -108,7 +108,7 @@ class DbLocal:
 		
 		memberid = data['memberid']
 		barcode = data['barcode']
-		count = data['count']
+		count = int(data['count'])
 		
 		result = self.db.Transaction(memberid, barcode, count)
 		

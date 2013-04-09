@@ -248,13 +248,20 @@ class MainScreen:
 		
 		# Ensure that the warning banner goes away
 		self.gui.HideBanner()
-
-		self.gui.addToProductDisplay(self.newProduct)
+		
+		nextState = self.states.IDLE
+		
+		if self.__user__().TransactionAllowed(self.newProduct.PriceEach):
+			self.gui.addToProductDisplay(self.newProduct)
+		else:
+			self.gui.SetBannerWithTimeout("You have reached your credit limit!", 4, RGB_WARNING_FG, self.__bannerTimeout__)
+			self.ProductFuncs.RemoveProduct(self.newProduct)
+			nextState = self.states.WARNING
+			
 		self.__requestRedraw__()
-			
 		self.newProduct = None
-			
-		return self.states.IDLE
+		
+		return nextState
 	
 	def __onIdleBadScanEvent__(self):
 		
@@ -317,5 +324,6 @@ class MainScreen:
 		self.__requestRedraw__()
 		
 		return nextState
+	
 	def __user__(self):
 		return self.UserFuncs.Get()

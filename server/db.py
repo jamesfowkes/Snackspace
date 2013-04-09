@@ -63,28 +63,30 @@ class db:
 	
 	def Transaction(self, memberid, barcode, count):
 		
-		result = False
-		
-		try:
-			product_data = self.db.products.filter(self.db.products.barcode==barcode).one()
-			member_data = self.db.members.filter(self.db.members.member_id==memberid).one()
-			
-			self.db.transactions.insert(
-									member_id = memberid,
-									amount = -product_data.price,
-									transaction_type = "SNACKSPACE",
-									transaction_status = "COMPLETE",
-									transaction_desc = product_data.shortdesc,
-									product_id = product_data.product_id)
-			
-			member_data.balance -= product_data.price
-			self.db.commit()
+		result = True
 
-			result = True;
+		product_data = self.db.products.filter(self.db.products.barcode==barcode).one()
+		member_data = self.db.members.filter(self.db.members.member_id==memberid).one()
+						
+		try:
+			for __count in range(0, count):
+				self.db.transactions.insert(
+										member_id = memberid,
+										amount = -product_data.price,
+										transaction_type = "SNACKSPACE",
+										transaction_status = "COMPLETE",
+										transaction_desc = product_data.shortdesc,
+										product_id = product_data.product_id)
+				
+				member_data.balance -= product_data.price
 			
+			self.db.commit()
+	
+			result = True;
+				
 		except:
 			result = False;
-		
+	
 		return result
 		
 	def __createTestDb(self):
