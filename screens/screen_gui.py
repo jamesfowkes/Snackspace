@@ -5,7 +5,7 @@ from threading import Timer
 # # Safe wild import: all constants
 from displayconstants import *  # @UnusedWildImport
 
-from lcarscappedbar import LCARSCappedBar, CapLocation
+from LCARSGui import LCARSCappedBar, CapLocation
 
 class ScreenGUI:
 
@@ -30,7 +30,7 @@ class ScreenGUI:
 		
 		if self.acceptGUIEvents:
 			for key, guiObject in self.objects.items():
-				if guiObject.collidePoint(pos):
+				if guiObject.collidePoint(pos) and guiObject.visible:
 					objectId = key
 					break
 				

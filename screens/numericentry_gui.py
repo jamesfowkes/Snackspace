@@ -5,7 +5,7 @@ import pygame
 ## Safe wild import: all constants
 from displayconstants import * #@UnusedWildImport
 
-from lcarscappedbar import LCARSCappedBar, CapLocation
+from LCARSGui import LCARSCappedBar, CapLocation
 
 from border import Border
 from screen_gui import ScreenGUI

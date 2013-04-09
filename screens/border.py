@@ -3,9 +3,7 @@ import pygame
 ## Safe wild import: all constants
 from displayconstants import * #@UnusedWildImport
 
-from lcarstext import LCARSText, TextAlign
-from lcarstlsweep import LCARSTLSweep
-from lcarscappedbar import LCARSCappedBar, CapLocation
+from LCARSGui import LCARSText, TextAlign, LCARSSweep, LCARSCappedBar, CapLocation
 
 ##
 ## Standard Border for all Snackspace LCARS screens
@@ -37,8 +35,8 @@ class Border:
 		sweepEndX = self.objects[self.TEXT].l() - BORDER_W
 		sweepWidth = sweepEndX - BORDER_W
 
-		self.objects[self.SWEEP] = LCARSTLSweep(
-			pygame.Rect(BORDER_W, BORDER_W, sweepWidth, sweepHeight), SMALL_BAR_W, LARGE_BAR_W, RGB_FG, RGB_BG, True)
+		self.objects[self.SWEEP] = LCARSSweep(
+			pygame.Rect(BORDER_W, BORDER_W, sweepWidth, sweepHeight), 'TL', SMALL_BAR_W, LARGE_BAR_W, RGB_FG, RGB_BG, True)
 
 	def setConstants(self):
 		# Object constant definitions

@@ -5,8 +5,7 @@ import inspect, os
 ## Safe wild import: all constants
 from displayconstants import * #@UnusedWildImport
 
-from lcarsimage import LCARSImage
-from lcarstext import LCARSText, TextAlign
+from LCARSGui import LCARSImage, LCARSText, TextAlign
 
 from border import Border
 from screen_gui import ScreenGUI
