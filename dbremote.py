@@ -83,7 +83,6 @@ class DbRemote:
 		try:
 			reply, _recvd = self.__send(message.GetXML())
 			reply = Message.ParseXML(reply)
-			print reply
 			return self.__transactionsSuccessful(reply)
 		except:
 			raise
@@ -203,13 +202,14 @@ class DbRemote:
 				return Message("pingreply")
 	
 	def __transactionsSuccessful(self, reply):
-		
+
+		success = True
+				
 		for action in reply:
 			if action.Action == "transaction":
-				print action.Data['result']
-			
-		return True
+				success = success and (action.Data['result'] == "Success")
 		
+		return success
 	##
 	## Property getters
 	##

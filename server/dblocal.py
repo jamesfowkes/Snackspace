@@ -98,7 +98,7 @@ class DbLocal:
 			data['username'] = result['username']
 			data['balance'] = result['balance']
 			data['limit'] = result['limit']
-				
+		
 		action = Packet(datatype, data)
 			
 		return action
@@ -112,7 +112,7 @@ class DbLocal:
 		
 		result = self.db.Transaction(memberid, barcode, count)
 		
-		action = Packet("transaction", {"barcode":barcode, "result":"YES!", "memberid":memberid})
+		action = Packet("transaction", {"barcode":barcode, "result": "Success" if result else "Fail", "memberid":memberid})
 			
 		return action
 

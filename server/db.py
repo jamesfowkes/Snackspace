@@ -9,7 +9,7 @@ testDataPath = "server/data/test_data.sql"
 onlineSqlUrl = 'https://nottinghack-instrumentation.googlecode.com/svn/db/'
 
 #List of tables that the Snackspace application needs
-tables = ['members', 'rfid_tags', 'transaction', 'products']
+tables = ['rfid_tags', 'members', 'transaction', 'products']
 
 class db:
 	
@@ -46,7 +46,7 @@ class db:
 		
 		return result
 	
-	def GetIProduct(self, barcode):
+	def GetProduct(self, barcode):
 		
 		result = {}
 		
@@ -63,13 +63,14 @@ class db:
 	
 	def Transaction(self, memberid, barcode, count):
 		
-		result = {}
+		result = False
 		
 		try:
 			product_data = self.db.products.filter(self.db.products.barcode==barcode).one()
 			member_data = self.db.members.filter(self.db.members.member_id==memberid).one()
 			
 			self.db.transactions.insert(
+									member_id = memberid,
 									amount = -product_data.price,
 									transaction_type = "SNACKSPACE",
 									transaction_status = "COMPLETE",
@@ -79,33 +80,75 @@ class db:
 			member_data.balance -= product_data.price
 			self.db.commit()
 
+			result = True;
+			
 		except:
-			result = None
+			result = False;
 		
 		return result
 		
 	def __createTestDb(self):
+		
+		"""
+		Takes a MySQL create table queries and botches them to work with SQLite
+		"""
+		
 		for table in tables:
 			filename = "tb_%s.sql" % table
 			localpath = "server/data/" + filename
 			if not os.path.exists(localpath):
 				urllib.urlretrieve(onlineSqlUrl + filename, localpath)
 				
-			sql = open(localpath).read()
+			sql = open(localpath).readlines()
+			newSQL = []
 			
 			if table == 'transaction':
 				table = 'transactions' ## Special case, filename != table name
-				
-			## Remove the "drop table" line, any autoincrement keywords and the engine specifier
+
 			dropSQL = "drop table if exists %s;" % table
-			sql = sql.replace(dropSQL, '')
-			sql = sql.replace('auto_increment', '')
-			sql = re.sub(r'ENGINE = \w*','',sql)
+					
+			hasPrimaryKey = False;
+			primaryKeys = None;
+					
+			for line in sql:
 				
+				## Remove the "drop table" line
+				line = line.replace(dropSQL, '')
+				
+				#Remove any engine specifier
+				line = re.sub(r'ENGINE = \w*','',line)
+				
+				## Remove any "primary key" lines, but save for later
+				if 'primary key' in line:
+					primaryKeys = line
+					line = ""
+					
+				## Replace MySQL auto_increment with PRIMARY KEY AUTOINCREMENT for SQLite
+				if 'auto_increment' in line:
+					line = line.replace('auto_increment', 'INTEGER PRIMARY KEY AUTOINCREMENT')
+					line = line.replace('int', '')
+					line = line.replace('not null', '')
+					line = line.replace('NOT NULL', '')
+					hasPrimaryKey = True;
+					
+				newSQL.append(line)
+			
+			## If we didn't find an auto-increment integer key,make sure the original key is created 
+			if not hasPrimaryKey and primaryKeys is not None:
+				newSQL.insert(-1, primaryKeys)
+			
+			newSQL = "".join(newSQL)
+			
+			#The last statement shouldn't have a comma after it
+			#which is same as not having a closing paren following a comma
+			newSQL = re.sub(",\s*\)",")", newSQL)
+										
 			# Execute the drop table line, then the create statement
 			self.db.execute(dropSQL)
 			self.db.commit()
-			self.db.execute(sql)
+			
+
+			self.db.execute(newSQL)
 			self.db.commit()
 			
 		# Insert test data

@@ -249,7 +249,7 @@ class MainScreen:
 		# Ensure that the warning banner goes away
 		self.gui.HideBanner()
 
-		self.gui.addProductToDisplay(self.newProduct)
+		self.gui.addToProductDisplay(self.newProduct)
 		self.__requestRedraw__()
 			
 		self.newProduct = None
