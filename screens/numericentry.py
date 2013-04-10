@@ -1,6 +1,6 @@
 from __future__ import division
 
-from constants import Requests, Screens
+from constants import Requests
 
 from numericentry_gui import NumericEntryGUI
 
@@ -45,7 +45,7 @@ class NumericEntry:
 	def __setAmount(self, amount):
 		self.amountinpence = amount
 		self.gui.updateAmount(self.amountinpence)
-		self.ScreenFuncs.RequestScreen(Screens.NUMERICENTRY, Requests.PAYMENT, True)
+		self.ScreenFuncs.RequestScreen(Requests.PAYMENT, True)
 		
 	def __newButtonPress(self, key):
 		
@@ -62,7 +62,7 @@ class NumericEntry:
 			self.amountinpence += key
 		
 			self.gui.updateAmount(self.amountinpence)
-			self.ScreenFuncs.RequestScreen(Screens.NUMERICENTRY, Requests.PAYMENT, True)
+			self.ScreenFuncs.RequestScreen(Requests.PAYMENT, True)
 		
 	def __chargeAndExit(self):
 		self.UserFuncs.PayDebt(self.amountinpence)
@@ -70,5 +70,5 @@ class NumericEntry:
 		
 	def __exit(self):
 		self.__setAmount(0)
-		self.ScreenFuncs.RequestScreen(Screens.NUMERICENTRY, Requests.MAIN, False)
+		self.ScreenFuncs.RequestScreen(Requests.MAIN, False)
 		

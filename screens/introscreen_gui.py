@@ -10,6 +10,11 @@ from LCARSGui import LCARSImage, LCARSText, TextAlign
 from border import Border
 from screen_gui import ScreenGUI
 
+if pygame.image.get_extended() != 0:
+	logo_path = "/hackspace_logo.png"
+else:
+	logo_path = "/hackspace_logo.bmp"
+	
 class IntroScreenGUI(ScreenGUI):
 
 	def __init__(self, width, height, owner):
@@ -23,7 +28,7 @@ class IntroScreenGUI(ScreenGUI):
 		##
 		self.path = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))) # script directory
 		self.objects = {
-			'titleimage' : LCARSImage(pygame.Rect(width/2, height*3/5, 0, 0), self.path + "/hackspace_logo.bmp", True),
+			'titleimage' : LCARSImage(pygame.Rect(width/2, height*3/5, 0, 0), self.path + logo_path, True),
 			}
 		
 		##

@@ -65,7 +65,10 @@ class Packet:
 		data_dict = {}
 			
 		for node in ele.childNodes:
-			data_dict[node.localName] = node.firstChild.nodeValue
+			try:
+				data_dict[node.localName] = node.firstChild.nodeValue
+			except AttributeError:
+				pass
 			
 		return cls(packettype, data_dict)
 		

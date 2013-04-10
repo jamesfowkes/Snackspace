@@ -2,7 +2,7 @@ from __future__ import division
 
 import logging
 
-from constants import Requests, Screens
+from constants import Requests
 
 # # Safe wild import: all constants
 from displayconstants import *  # @UnusedWildImport
@@ -146,7 +146,7 @@ class MainScreen:
 		return self.ProductFuncs.TotalPrice()
 	
 	def __requestRedraw(self):
-		self.ScreenFuncs.RequestScreen(Screens.MAINSCREEN, Requests.MAIN, True)
+		self.ScreenFuncs.RequestScreen(Requests.MAIN, True)
 		return self.states.IDLE
 	
 	def __isUserLogged(self):
@@ -218,7 +218,7 @@ class MainScreen:
 			nextState = self.__returnToIntro()
 			
 		if (button == self.gui.PAY):
-			self.ScreenFuncs.RequestScreen(Screens.MAINSCREEN, Requests.PAYMENT, False)
+			self.ScreenFuncs.RequestScreen(Requests.PAYMENT, False)
 		
 		if (button == self.gui.DOWN):
 			self.gui.moveDown()
@@ -313,7 +313,7 @@ class MainScreen:
 		
 	def __returnToIntro(self):
 		self.clearAll()
-		self.ScreenFuncs.RequestScreen(Screens.MAINSCREEN, Requests.INTRO, False)
+		self.ScreenFuncs.RequestScreen(Requests.INTRO, False)
 		return self.states.INACTIVE
 	
 	def __chargeUser(self):

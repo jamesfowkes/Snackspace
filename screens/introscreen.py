@@ -1,3 +1,5 @@
+## Safe wild import: all constants
+from displayconstants import * #@UnusedWildImport
 
 from constants import Requests, Screens
 from introscreen_gui import IntroScreenGUI
@@ -24,5 +26,8 @@ class IntroScreen:
 		if self.acceptGUIEvents:
 			self.ScreenFuncs.RequestScreen(Screens.INTROSCREEN, Requests.MAIN, False)
 		
-	def setIntroText(self, text, color):
-		self.gui.setIntroText(text, color)
+	def setDbState(self, dbConnected):
+		if not dbConnected:
+			self.gui.setIntroText("ERROR: Cannot access Snackspace remote database", RGB_ERROR_FG)
+		else:
+			self.gui.setIntroText("Scan an item or swipe your card to start", RGB_FG)

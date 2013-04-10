@@ -21,11 +21,10 @@ class DbClient:
 	## Public Functions
 	##
 	
-	#def Send(self, message, callback):
+	def PingServer(self):
+		self.__testConnection()
+		return self.__foundServer
 		
-	#	reply, received = self.__send(message, callback)
-	#	callback(reply, received, self.__connected)
-	
 	def GetProduct(self, barcode):
 		packet = Packet("getproduct", {"barcode":barcode})
 		message = Message(packet).GetXML()

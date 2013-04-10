@@ -25,7 +25,36 @@ from screens.numericentry import NumericEntry
 from screens.mainscreen import MainScreen
 #from screens.productentry import ProductEntry
 
+class Task:
+	def __init__(self, func, time, active):
+		self.Function = func
+		self._period = time
+		self.Ticks = time
+		self.Active = active			
+	
+	def Reload(self):
+		self.Ticks = self._period
+		
+class TaskHandler:
+			
+	def __init__(self, parent):
+		self._tasks = []
+		self._parent = parent
+	
+	def addFunction(self, function, time, active = True):
+		newTask = Task(function, time, active)
+		self._tasks.append(newTask)
+		
+	def tick(self):
+		for t in self._tasks:
+			if t.Active and t.Ticks > 0:
+				t.Ticks -= 1
+				if t.Ticks == 0:
+					t.Reload()
+					t.Function()
+
 class Snackspace:
+	
 	def __init__(self, window, size, localdb, rfid_port=None, limitAction='ignore', creditAction='disallow'):
 		
 		self.inittime = int(time.time())
@@ -76,15 +105,16 @@ class Snackspace:
 		self.currentscreen = Screens.BLANKSCREEN
 		self.__setScreen(Screens.INTROSCREEN, False)
 		
+		self.screens[Screens.INTROSCREEN.value].setDbState(self.dbaccess.isConnected)
+		
 		if not self.dbaccess.isConnected:
 			self.logger.warning("Could not find remote database")
-			self.screens[Screens.INTROSCREEN.value].setIntroText(
-				"ERROR: Cannot access Snackspace remote database",
-				(0xFF, 0, 0))
 			self.__setScreen(Screens.INTROSCREEN, True)
 		else:
-			self.logger.info("Found remote database")
+			self.logger.debug("Found remote database")
 			self.screens[Screens.INTROSCREEN.value].acceptGUIEvents = True
+		
+		self.oldConnectState = self.dbaccess.isConnected
 		
 	def StartEventLoop(self):
 		
@@ -94,7 +124,7 @@ class Snackspace:
 			for event in pygame.event.get():
 				if event.type == pygame.QUIT: sys.exit()
 				if event.type == pygame.MOUSEBUTTONUP:
-					self.logger.info("GUI Event")
+					self.logger.debug("GUI Event")
 					try:
 						self.screens[self.currentscreen.value].OnGuiEvent(event.pos)
 					except AttributeError:  # Screen does not handle Gui events
@@ -103,18 +133,37 @@ class Snackspace:
 				if event.type == pygame.KEYDOWN:
 					self.__inputHandler(event)
 			
-			if (pygame.time.get_ticks() - ticks) > 1000:
+			if (pygame.time.get_ticks() - ticks) > 0:
+				
 				ticks = pygame.time.get_ticks()
 				
-				if self.rfid is not None:
-					rfid = self.rfid.PollForCardID()
-				else:
-					rfid = self.dummyRFID
-					self.dummyRFID = []
-					
-				if len(rfid):
-					self.__onSwipeEvent(self.__mangleRFID(rfid))
+				self.taskHandler.tick()
 	
+	def rfidTask(self):
+		if self.rfid is not None:
+			rfid = self.rfid.PollForCardID()
+		else:
+			rfid = self.dummyRFID
+			self.dummyRFID = []
+	
+		if len(rfid):
+			self.__onSwipeEvent(self.__mangleRFID(rfid))
+	
+	def dbTask(self):
+		connected = self.dbaccess.PingServer()
+		
+		if connected != self.oldConnectState:
+			self.screens[Screens.INTROSCREEN.value].setDbState(connected)
+			self.__setScreen(Requests.INTRO, True)
+			if not connected:
+				self.logger.debug("Lost server connection.")
+				self.screens[Screens.MAINSCREEN.value].clearAll()
+				self.__RemoveAllProducts()
+				self.__ForgetUser()
+			else:
+				self.logger.debug("Got server connection.")
+		self.oldConnectState = connected
+			
 	def __mangleRFID(self, rfid):
 		
 		mangled = ""
@@ -132,14 +181,14 @@ class Snackspace:
 			
 		elif (event.key == pygame.K_RETURN):
 			## Buffer is complete, process it
-			self.logger.info("Got raw input '%s'" % self.scannedinput)
+			self.logger.debug("Got raw input '%s'" % self.scannedinput)
 			self.__onScanEvent(self.scannedinput)
 			
 			self.scannedinput = ''
 				
 		elif (event.key == pygame.K_a) and (pygame.key.get_mods() & pygame.KMOD_CTRL):
 			## Go to product entry screen
-			self.__RequestScreen(Screens.MAINSCREEN, Requests.PRODUCTS, False)
+			self.__setScreen(Requests.PRODUCTS, False)
 			
 		elif (event.key == pygame.K_u) and (pygame.key.get_mods() & pygame.KMOD_CTRL):
 			## Fake an RFID swipe
@@ -149,13 +198,17 @@ class Snackspace:
 			
 					
 	def __onSwipeEvent(self, cardnumber):
+		
+		if not self.dbaccess.isConnected:
+			return
+		
 		userdata = self.dbaccess.GetUserData(cardnumber)
 		
 		if userdata is not None:
 			self.user = User(*userdata, limitAction = self.limitAction, allowCredit = self.creditAction)
-			self.logger.info("Got user %s" % self.user.Name)
+			self.logger.debug("Got user %s" % self.user.Name)
 		else:
-			self.logger.info("Bad RFID %s" % cardnumber)
+			self.logger.debug("Bad RFID %s" % cardnumber)
 						
 		for screen in self.screens.values():
 			if self.user is not None:
@@ -172,6 +225,9 @@ class Snackspace:
 						raise  # # Only raise error if the method exists
 			
 	def __onScanEvent(self, barcode):
+		
+		if not self.dbaccess.isConnected or len(barcode) == 0:
+			return
 		
 		newproduct = self.__AddProduct(barcode)
 		
@@ -192,7 +248,7 @@ class Snackspace:
 					
 	def __setScreen(self, newscreen, force):	
 		if (newscreen.value != self.currentscreen.value or force):
-			self.logger.info("Changing screen from %s to %s" % (self.currentscreen.str, newscreen.str))
+			self.logger.debug("Changing screen from %s to %s" % (self.currentscreen.str, newscreen.str))
 			self.currentscreen = newscreen
 			self.screens[newscreen.value].draw(self.window)
 				
@@ -218,7 +274,11 @@ class Snackspace:
 		self.user = None
 		self.products = []
 		
-	def __RequestScreen(self, currentscreenid, request, force):
+		self.taskHandler = TaskHandler(self)
+		self.taskHandler.addFunction(self.rfidTask, 500, True)
+		self.taskHandler.addFunction(self.dbTask, 5000, True)
+
+	def __RequestScreen(self, request, force):
 		if request == Requests.MAIN:
 			self.__setScreen(Screens.MAINSCREEN, force)
 		elif request == Requests.PAYMENT:
