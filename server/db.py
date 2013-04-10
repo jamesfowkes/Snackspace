@@ -3,8 +3,12 @@ import sqlsoup #@UnresolvedImport
 import urllib
 import re
 
+from Crypto.Cipher import AES
+
 testDbPath = "data/test.db"
 testDataPath = "data/test_data.sql"
+
+realDbPath = "snackspace:%s@rommie/instrumentation"
 
 onlineSqlUrl = 'https://nottinghack-instrumentation.googlecode.com/svn/db/'
 
@@ -22,8 +26,28 @@ class db:
 				self.__createTestDb()
 					
 		else:
-			#TODO: Implement access to MySQL DB on Holly
-			pass
+			realDbPath = realDbPath % self._getPassword()
+			
+			self.db = sqlsoup.SQLSoup("mysql://%s" % realDbPath)
+	
+	def _getPassword(self):
+		"""
+		This system is not particularly secure.
+		The database password is stored in plaintext
+		in a file (".sspwd") that should be in the same directory
+		as this file.
+		The password only grants MySQL access to the 'snackspace'
+		MySQL user, so access is restricted to CRU anyway.
+		Any further security improvements are left as an exercise for the reader.
+		""" 
+		
+		try:
+			pwd = open(".sspwd")
+			pwd = pwd.readline()
+		except IOError:
+			return False
+		
+		return pwd
 	
 	def GetUser(self, rfid):
 		

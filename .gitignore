@@ -3,3 +3,4 @@
 
 ## Ignore the test database file
 server/data/test.db
+server/.*
