@@ -1,5 +1,5 @@
 import sys
-import pygame
+import pygame #@UnresolvedImport
 
 import argparse #@UnresolvedImport
 
@@ -23,7 +23,7 @@ from dbclient import DbClient
 from screens.introscreen import IntroScreen
 from screens.numericentry import NumericEntry
 from screens.mainscreen import MainScreen
-#from screens.productentry import ProductEntry
+from screens.productentry import ProductEntry
 
 class Task:
 	def __init__(self, func, time, active):
@@ -95,7 +95,7 @@ class Snackspace:
 			Screens.INTROSCREEN.value	: IntroScreen(self.width, self.height, self.ScreenFunctions, self.UserFunctions, self.ProductFunctions),
 			Screens.NUMERICENTRY.value	: NumericEntry(self.width, self.height, self.ScreenFunctions, self.UserFunctions),
 			Screens.MAINSCREEN.value	: MainScreen(self.width, self.height, self.ScreenFunctions, self.UserFunctions, self.ProductFunctions),
-			#Screens.PRODUCTENTRY.value	: ProductEntry(self.width, self.height, self.ScreenFunctions, self.ProductFunctions)
+			Screens.PRODUCTENTRY.value	: ProductEntry(self.width, self.height, self.ScreenFunctions, self.ProductFunctions)
 			}
 		
 		self.screens[Screens.INTROSCREEN.value].acceptGUIEvents = False
@@ -126,7 +126,7 @@ class Snackspace:
 				if event.type == pygame.MOUSEBUTTONUP:
 					self.logger.debug("GUI Event")
 					try:
-						self.screens[self.currentscreen.value].OnGuiEvent(event.pos)
+						self.screens[self.currentscreen.value].OnGuiEvent(event.pos, pygame.key.get_mods())
 					except AttributeError:  # Screen does not handle Gui events
 						if "OnGuiEvent" in dir(self.screens[self.currentscreen.value]):
 							raise  # # Only raise error if the OnGuiEvent method exists

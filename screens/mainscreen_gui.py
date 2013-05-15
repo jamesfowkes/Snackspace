@@ -1,6 +1,6 @@
 from __future__ import division
 
-import pygame
+import pygame #@UnresolvedImport
 import logging
 
 # # Safe wild import: all constants

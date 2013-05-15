@@ -1,11 +1,11 @@
 from __future__ import division
 
-import pygame
+import pygame #@UnresolvedImport
 
 ## Safe wild import: all constants
 from displayconstants import * #@UnusedWildImport
 
-from lcarscappedbar import LCARSCappedBar, CapLocation
+from LCARSGui import LCARSCappedBar, CapLocation
 
 from border import Border
 from screen_gui import ScreenGUI

@@ -25,7 +25,7 @@ class IntroScreen:
 		
 		if self.acceptGUIEvents:
 			self.ScreenFuncs.RequestScreen(Screens.INTROSCREEN, Requests.MAIN, False)
-		
+	
 	def setDbState(self, dbConnected):
 		if not dbConnected:
 			self.gui.setIntroText("ERROR: Cannot access Snackspace remote database", RGB_ERROR_FG)

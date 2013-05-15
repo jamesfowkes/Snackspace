@@ -18,7 +18,7 @@ class ProductEntry:
     def draw(self, window):
         self.gui.draw(window)
     
-    def OnGuiEvent(self, pos):
+    def OnGuiEvent(self, pos, _modifiers):
     
         button = self.gui.getObjectId(pos)
         

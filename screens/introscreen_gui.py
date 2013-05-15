@@ -1,4 +1,4 @@
-import pygame
+import pygame #@UnresolvedImport
 import inspect, os
 
 
@@ -43,7 +43,7 @@ class IntroScreenGUI(ScreenGUI):
 		self.setIntroText("Scan an item or swipe your card to start", RGB_FG)
 		self.setIntroText2("Don't have a card? Seeing error messages?", RGB_FG)
 		self.setIntroText3("Pop money in the pot instead!", RGB_FG)
-			
+		
 	def setIntroText(self, text, color):
 		## The intro text is positioned centrally between the sweep and image
 		textYPosition = (self.border.innerY() + self.objects['titleimage'].t()) / 2
