@@ -1,7 +1,7 @@
 ## Safe wild import: all constants
 from displayconstants import * #@UnusedWildImport
 
-from constants import Requests, Screens
+from constants import Screens
 from introscreen_gui import IntroScreenGUI
 
 class IntroScreen:
@@ -12,19 +12,24 @@ class IntroScreen:
 		self.ProductFuncs = productFuncs
 		self.UserFuncs = userFuncs
 		
+		self.active = False
+		
 		self.gui = IntroScreenGUI(width, height, self)
+	
+	def setActive(self, state):
+		self.active = state
 		
 	def draw(self, window):
 		self.gui.draw(window)
 		
 	def onSwipeEvent(self, cardnumber):
 		if self.acceptGUIEvents:
-			self.ScreenFuncs.RequestScreen(Screens.INTROSCREEN, Requests.MAIN, False)
+			self.ScreenFuncs.RequestScreen(Screens.MAINSCREEN)
 		
 	def onScanEvent(self, barcode):
 		
 		if self.acceptGUIEvents:
-			self.ScreenFuncs.RequestScreen(Screens.INTROSCREEN, Requests.MAIN, False)
+			self.ScreenFuncs.RequestScreen(Screens.MAINSCREEN)
 	
 	def setDbState(self, dbConnected):
 		if not dbConnected:

@@ -12,12 +12,6 @@ class Constant:
 	def str(self):
 		return self.__str__
 		
-class Requests:
-	INTRO = Constant("INTRO", 0)
-	MAIN = Constant("MAIN", 1)
-	PAYMENT = Constant("PAYMENT", 2)
-	PRODUCTS = Constant("PRODUCTS", 3)
-	
 class Screens:
 	
 	BLANKSCREEN = Constant("BLANKSCREEN", -1)

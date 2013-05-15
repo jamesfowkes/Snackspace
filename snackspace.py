@@ -13,7 +13,7 @@ from rfid import RFIDReader
 
 from bunch import Bunch
 
-from constants import Requests, Screens
+from constants import Screens
 
 from product import Product
 from user import User
@@ -103,13 +103,13 @@ class Snackspace:
 		self.screens[Screens.MAINSCREEN.value].acceptGUIEvents = True
 		
 		self.currentscreen = Screens.BLANKSCREEN
-		self.__setScreen(Screens.INTROSCREEN, False)
+		self.__setScreen(Screens.INTROSCREEN)
 		
 		self.screens[Screens.INTROSCREEN.value].setDbState(self.dbaccess.isConnected)
 		
 		if not self.dbaccess.isConnected:
 			self.logger.warning("Could not find remote database")
-			self.__setScreen(Screens.INTROSCREEN, True)
+			self.__setScreen(Screens.INTROSCREEN)
 		else:
 			self.logger.debug("Found remote database")
 			self.screens[Screens.INTROSCREEN.value].acceptGUIEvents = True
@@ -126,7 +126,7 @@ class Snackspace:
 				if event.type == pygame.MOUSEBUTTONUP:
 					self.logger.debug("GUI Event")
 					try:
-						self.screens[self.currentscreen.value].OnGuiEvent(event.pos, pygame.key.get_mods())
+						self.screens[self.currentscreen.value].OnGuiEvent(event.pos)
 					except AttributeError:  # Screen does not handle Gui events
 						if "OnGuiEvent" in dir(self.screens[self.currentscreen.value]):
 							raise  # # Only raise error if the OnGuiEvent method exists
@@ -154,7 +154,7 @@ class Snackspace:
 		
 		if connected != self.oldConnectState:
 			self.screens[Screens.INTROSCREEN.value].setDbState(connected)
-			self.__setScreen(Requests.INTRO, True)
+			self.__setScreen(Screens.INTROSCREEN, True)
 			if not connected:
 				self.logger.debug("Lost server connection.")
 				self.screens[Screens.MAINSCREEN.value].clearAll()
@@ -188,15 +188,21 @@ class Snackspace:
 				
 		elif (event.key == pygame.K_a) and (pygame.key.get_mods() & pygame.KMOD_CTRL):
 			## Go to product entry screen
-			self.__setScreen(Requests.PRODUCTS, False)
+			self.__setScreen(Screens.PRODUCTENTRY)
 			
 		elif (event.key == pygame.K_u) and (pygame.key.get_mods() & pygame.KMOD_CTRL):
 			## Fake an RFID swipe
 			if self.rfid is None:
 				self.dummyRFID = [0x1B, 0x7F, 0x2D, 0x2D]
 			
-			
+		elif (event.key == pygame.K_p) and (pygame.key.get_mods() & pygame.KMOD_CTRL):
+			## Fake a good product scan
+			self.__onScanEvent('7613033126321')
 					
+		elif (event.key == pygame.K_f) and (pygame.key.get_mods() & pygame.KMOD_CTRL):
+			## Fake a bad product scan
+			self.__onScanEvent('BADBARCODE')
+						
 	def __onSwipeEvent(self, cardnumber):
 		
 		if not self.dbaccess.isConnected:
@@ -234,7 +240,7 @@ class Snackspace:
 		if newproduct is not None:
 			for screen in self.screens.values():
 				try:
-					screen.OnScan(newproduct)
+					screen.OnScan(newproduct, barcode)
 				except AttributeError:
 					if "OnScan" in dir(screen):
 						raise  # # Only raise error if the method exists
@@ -246,12 +252,29 @@ class Snackspace:
 					if "OnBadScan" in dir(screen):
 						raise  # # Only raise error if the method exists
 					
-	def __setScreen(self, newscreen, force):	
-		if (newscreen.value != self.currentscreen.value or force):
+	def __setScreen(self, newscreen):
+		
+		valid = False
+		if (newscreen.value == self.currentscreen.value) or self.__isValidTransition(newscreen):
 			self.logger.debug("Changing screen from %s to %s" % (self.currentscreen.str, newscreen.str))
+			
+			if self.currentscreen.value != -1:
+				self.screens[self.currentscreen.value].setActive(False)
 			self.currentscreen = newscreen
+			self.screens[newscreen.value].setActive(True)
+			
+			valid = True
 			self.screens[newscreen.value].draw(self.window)
+		else:
+			self.logger.debug("Could not change screen from %s to %s" % (self.currentscreen.str, newscreen.str))
 				
+		return valid
+
+	def __isValidTransition(self, newscreen):
+		
+		validTransitions = self.validScreenTransitions[self.currentscreen]	
+		return newscreen in validTransitions
+	
 	def __setConstants(self):
 		self.validKeys = [
 			pygame.K_0, pygame.K_1, 	pygame.K_2, pygame.K_3, pygame.K_4,
@@ -273,21 +296,22 @@ class Snackspace:
 
 		self.user = None
 		self.products = []
-		
+
+		self.validScreenTransitions = {
+			Screens.BLANKSCREEN		: [Screens.INTROSCREEN],
+			Screens.INTROSCREEN		: [Screens.MAINSCREEN, Screens.PRODUCTENTRY],
+			Screens.MAINSCREEN		: [Screens.INTROSCREEN, Screens.NUMERICENTRY],
+			Screens.NUMERICENTRY	: [Screens.MAINSCREEN],
+			Screens.PRODUCTENTRY	: [Screens.INTROSCREEN]
+			}
+				
 		self.taskHandler = TaskHandler(self)
 		self.taskHandler.addFunction(self.rfidTask, 500, True)
 		self.taskHandler.addFunction(self.dbTask, 5000, True)
 
-	def __RequestScreen(self, request, force):
-		if request == Requests.MAIN:
-			self.__setScreen(Screens.MAINSCREEN, force)
-		elif request == Requests.PAYMENT:
-			self.__setScreen(Screens.NUMERICENTRY, force)
-		elif request == Requests.INTRO:
-			self.__setScreen(Screens.INTROSCREEN, force)
-		elif request == Requests.PRODUCTS:
-			self.__setScreen(Screens.PRODUCTENTRY, force)
-				
+	def __RequestScreen(self, screen):
+		self.__setScreen(screen)
+						
 	def __ChargeAll(self):
 		if self.user is not None:
 			products = [(product.Barcode, product.Count) for product in self.products]

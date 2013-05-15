@@ -24,9 +24,9 @@ class ProductEntryGUI(ScreenGUI):
         ## Fixed position objects
         ##
         
-        minx = border.innerX() + BORDER_W
+        minx = border.innerX() + 4*BORDER_W
         maxx = width - BORDER_W
-        miny = border.innerY() + BORDER_W
+        miny = border.innerY() + 4*BORDER_W
         maxy = height - BORDER_W
         
         buttonh = 50
@@ -34,31 +34,58 @@ class ProductEntryGUI(ScreenGUI):
         
         fullwidth = maxx - minx
         
+        self.defaultText = {
+			self.BARCODE : "1. Scan an item",
+			self.DESCRIPTION : "2. Type a description",
+			self.PRICE : "3. Set a price",
+			}
+        
         self.objects = {
-            self.TEXTENTRY : LCARSCappedBar(pygame.Rect(minx, miny, fullwidth, buttonh), CapLocation.CAP_LEFT + CapLocation.CAP_RIGHT, "Scan an item", RGB_FG, RGB_BG, True),
-            self.DONE : LCARSCappedBar(pygame.Rect(minx, maxy-buttonh, buttonw, buttonh), CapLocation.CAP_LEFT + CapLocation.CAP_RIGHT, "Done", RGB_FG, RGB_BG, True),
-            self.CANCEL : LCARSCappedBar(pygame.Rect(maxx - buttonw, maxy-buttonh, buttonw, buttonh), CapLocation.CAP_LEFT + CapLocation.CAP_RIGHT, "Cancel", RGB_FG, RGB_BG, True),
+            self.BARCODE        : LCARSCappedBar(pygame.Rect(minx, miny, fullwidth, buttonh), CapLocation.CAP_LEFT + CapLocation.CAP_RIGHT, "1. Scan an item", RGB_ENTRY_FG, RGB_BG, True),
+            self.DESCRIPTION    : LCARSCappedBar(pygame.Rect(minx, miny + (2*buttonh), fullwidth, buttonh), CapLocation.CAP_LEFT + CapLocation.CAP_RIGHT, "2. Type a description", RGB_FG, RGB_BG, True),
+            self.PRICE          : LCARSCappedBar(pygame.Rect(minx, miny + (4*buttonh), fullwidth, buttonh), CapLocation.CAP_LEFT + CapLocation.CAP_RIGHT, "3. Set a price", RGB_FG, RGB_BG, True),
+            self.DONE           : LCARSCappedBar(pygame.Rect(minx, maxy-buttonh, buttonw, buttonh), CapLocation.CAP_LEFT + CapLocation.CAP_RIGHT, "Done", RGB_FG, RGB_BG, True),
+            self.CANCEL         : LCARSCappedBar(pygame.Rect(maxx - buttonw, maxy-buttonh, buttonw, buttonh), CapLocation.CAP_LEFT + CapLocation.CAP_RIGHT, "Cancel", RGB_FG, RGB_BG, True),
         }
         
         ##
         ## Import standard objects
-        
+        ##
         self.objects.update(border.getBorder());
 
         ##
         ## Position-dependant objects
         ##
     
+    def SetActiveEntry(self, entry):
+
+        for key, guiObject in self.objects.iteritems():
+            if key == entry:
+                guiObject.fg = RGB_ENTRY_FG
+                guiObject.setText("")
+            else:
+                guiObject.fg = RGB_FG
+                if key in [self.BARCODE, self.DESCRIPTION, self.PRICE]:
+                    guiObject.setText(self.defaultText[key])
+                
+    def ChangeBarcode(self, barcode):
+        self.objects[self.BARCODE].setText(barcode)
+        
     def setConstants(self):
         # Object constant definitions
-        self.TEXTENTRY = 0
-        self.DONE = 1
-        self.CANCEL = 2
+        self.BARCODE = 0
+        self.DESCRIPTION = 1
+        self.PRICE = 2
+        self.DONE = 3
+        self.CANCEL = 4
                 
     def draw(self, window):
         window.fill(RGB_BG)
     
         for guiObject in self.objects.values():
             guiObject.draw(window)
-                
+            
+        if self.banner is not None:
+            self.banner.draw(window)
+
         pygame.display.flip()

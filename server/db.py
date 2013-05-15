@@ -3,10 +3,8 @@ import sqlsoup #@UnresolvedImport
 import urllib
 import re
 
-from Crypto.Cipher import AES
-
-testDbPath = "data/test.db"
-testDataPath = "data/test_data.sql"
+testDbPath = "server/data/test.db"
+testDataPath = "server/data/test_data.sql"
 
 realDbPath = "snackspace:%s@rommie/instrumentation"
 
@@ -20,6 +18,9 @@ class db:
 	def __init__(self, useTestDb):
 		
 		if useTestDb:
+			
+			print os.getcwd()
+			
 			self.db = sqlsoup.SQLSoup("sqlite:///%s" % testDbPath)
 			
 			if not os.path.exists(testDbPath):

@@ -56,7 +56,7 @@ class ScreenGUI:
 			self.timer = Timer(timeout, callback)
 			self.timer.start()
 
-	def HideBanner(self, redrawnow = False):
+	def HideBanner(self):
 		try:
 			self.timer.cancel()
 		except:
