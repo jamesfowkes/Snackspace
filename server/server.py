@@ -16,25 +16,43 @@ class Server:
 		logging.basicConfig(level=logging.DEBUG)
 		self.logger = logging.getLogger("SSServer")
 		
-		sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		self.db = db
 		
 		if localmode:
-			server_address = ('localhost', 10000)
+			server_host = 'localhost'
+			
 		else:
-			server_address = (socket.gethostname(),0)
+			server_host = socket.gethostname()
 		
-		self.logger.info('Server starting up on %s port %s' % server_address)
+		server_port = 10000
 		
-		sock.bind(server_address)
+		started = False
 		
-		sock.listen(1)
+		while (not started) and (server_port < 11000):
+			server_address = (server_host, server_port)
+			try:
+				self.logger.info('Trying server start on %s port %s' % server_address)
+				self.sock.bind(server_address)
+				started = True
+			except:
+				server_port = server_port + 1 
+						
+		if started:
+			self.ServerLoop()
+		else:
+			self.logger.error("Could not start server on any port on %s!" % server_host)
+	
+	def ServerLoop(self):
 		
+		self.sock.listen(1)
+			
 		#Wait for connection from client
 		while(True):
 			
 			self.logger.info("Waiting for client to connect...")
 			
-			connection, client_address = sock.accept()
+			connection, client_address = self.sock.accept()
 			data = ""
 			
 			self.logger.info("Waiting for client at %s port %s" % client_address)
@@ -42,7 +60,7 @@ class Server:
 				length = int(connection.recv(5))
 				self.logger.info("Receiving %d bytes" % length)
 				data = connection.recv(length)
-				returndata = self.HandleMessage(data, db)
+				returndata = self.HandleMessage(data, self.db)
 				if (returndata is not None):
 					
 					self.logger.info("Sending %s" % returndata)

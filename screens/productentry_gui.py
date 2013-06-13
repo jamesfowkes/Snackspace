@@ -42,8 +42,8 @@ class ProductEntryGUI(ScreenGUI):
         
         self.objects = {
             self.BARCODE        : LCARSCappedBar(pygame.Rect(minx, miny, fullwidth, buttonh), CapLocation.CAP_LEFT + CapLocation.CAP_RIGHT, "1. Scan an item", RGB_ENTRY_FG, RGB_BG, True),
-            self.DESCRIPTION    : LCARSCappedBar(pygame.Rect(minx, miny + (2*buttonh), fullwidth, buttonh), CapLocation.CAP_LEFT + CapLocation.CAP_RIGHT, "2. Type a description", RGB_FG, RGB_BG, True),
-            self.PRICE          : LCARSCappedBar(pygame.Rect(minx, miny + (4*buttonh), fullwidth, buttonh), CapLocation.CAP_LEFT + CapLocation.CAP_RIGHT, "3. Set a price", RGB_FG, RGB_BG, True),
+            self.DESCRIPTION    : LCARSCappedBar(pygame.Rect(minx, miny + (2*buttonh), fullwidth, buttonh), CapLocation.CAP_LEFT + CapLocation.CAP_RIGHT, "2. Type a description", RGB_ERROR_FG, RGB_BG, True),
+            self.PRICE          : LCARSCappedBar(pygame.Rect(minx, miny + (4*buttonh), fullwidth, buttonh), CapLocation.CAP_LEFT + CapLocation.CAP_RIGHT, "3. Set a price", RGB_ERROR_FG, RGB_BG, True),
             self.DONE           : LCARSCappedBar(pygame.Rect(minx, maxy-buttonh, buttonw, buttonh), CapLocation.CAP_LEFT + CapLocation.CAP_RIGHT, "Done", RGB_FG, RGB_BG, True),
             self.CANCEL         : LCARSCappedBar(pygame.Rect(maxx - buttonw, maxy-buttonh, buttonw, buttonh), CapLocation.CAP_LEFT + CapLocation.CAP_RIGHT, "Cancel", RGB_FG, RGB_BG, True),
         }
@@ -64,13 +64,24 @@ class ProductEntryGUI(ScreenGUI):
                 guiObject.fg = RGB_ENTRY_FG
                 guiObject.setText("")
             else:
-                guiObject.fg = RGB_FG
                 if key in [self.BARCODE, self.DESCRIPTION, self.PRICE]:
-                    guiObject.setText(self.defaultText[key])
-                
+                    if (len(guiObject.getText()) == 0) or (guiObject.getText() == self.defaultText[key]):
+                        #No entry in this box. Set error colour
+                        guiObject.fg = RGB_ERROR_FG
+                        guiObject.setText(self.defaultText[key])
+                    else:
+                        guiObject.fg = RGB_FG
+                        guiObject.setText(guiObject.getText()) #Forces colour update
+
     def ChangeBarcode(self, barcode):
         self.objects[self.BARCODE].setText(barcode)
-        
+   
+    def ChangeDescription(self, description):
+        self.objects[self.DESCRIPTION].setText(description) 
+
+    def ChangePrice(self, priceinpence):
+        self.objects[self.PRICE].setText("\xA3%.2f" % (priceinpence / 100)) 
+                    
     def setConstants(self):
         # Object constant definitions
         self.BARCODE = 0

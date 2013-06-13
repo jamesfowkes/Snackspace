@@ -15,14 +15,19 @@ class DbClient:
 	def __init__(self, local):
 		
 		self.__setVariables(local)
-		self.__testConnection()
+		self.__findServer()
 		
 	##
 	## Public Functions
 	##
 	
 	def PingServer(self):
-		self.__testConnection()
+		
+		if self.__foundServer:
+			self.__testConnection()
+		else:
+			self.__findServer()
+
 		return self.__foundServer
 		
 	def GetProduct(self, barcode):
@@ -92,8 +97,9 @@ class DbClient:
 		try:
 			reply, _recvd = self.__send(message)
 			reply = Message.ParseXML(reply)
+			return self.__addProductSuccessful(reply)
 		except:
-			return None
+			raise
 		
 	def AddCredit(self, memberID, amountinpence):
 		packet = Packet("addcredit", {"memberid":memberID, "amountinpence":amountinpence})
@@ -117,13 +123,22 @@ class DbClient:
 		self.__callback = None
 
 		if self.__local:
-			self.server_address = ('localhost', 10000)
+			self.server_host = 'localhost'
 		else:
-			self.server_address = ''
+			self.server_host = ''
 		
 		logging.basicConfig(level=logging.DEBUG)
 		self.logger = logging.getLogger("DBClient")
+	
+	def __findServer(self):
 		
+		server_port = 9999
+		
+		while (not self.__foundServer) and (server_port < 11000):
+			server_port = server_port + 1
+			self.server_address = (self.server_host, server_port)
+			self.__testConnection()
+			
 	def __testConnection(self):
 		## Assume we are connected initially
 		## to let __send method work
@@ -213,9 +228,22 @@ class DbClient:
 	
 	def __addCreditSuccessful(self, reply):
 
+		success = False
+		reply = reply[0]
+		
 		if reply.Type == "result" and reply.Data['action'] == "addcredit":
 			success = (reply.Data['result'] == "Success")
 		return success
+	
+	def __addProductSuccessful(self, reply):
+
+		success = False
+		reply = reply[0]
+		
+		if reply.Type == "result" and reply.Data['action'] == "addproduct":
+			success = (reply.Data['result'] == "Success")
+		return success
+
 	##
 	## Property getters
 	##

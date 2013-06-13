@@ -60,9 +60,19 @@ class DbServer:
 		
 		return self.__userFromRFID(rfid) 
 	
-	def AddProduct(self, barcode):
-		self.logger.info("Adding new product %s" % barcode)
+	def AddProduct(self, data):
+		
+		_barcode = data['barcode']
+		_desc = data['description']
+		_priceinpence = data['priceinpence']
+		
+		self.logger.info("Adding new product %s" % _barcode)
 
+		result = self.db.AddProduct(_barcode, _desc, _priceinpence)
+		
+		packet = Packet("result", {"action":"addproduct", "result": "Success" if result else "Fail"})
+		
+		return packet
 	
 	def AddCredit(self, data):
 		memberid = data['memberid']

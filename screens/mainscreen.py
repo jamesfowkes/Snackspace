@@ -15,23 +15,29 @@ from enum import Enum
 			
 class MainScreen:
 
-	def __init__(self, width, height, screenFuncs, userFuncs, productFuncs):
+	def __init__(self, width, height, manager, owner):
 		
 		self.gui = MainScreenGUI(width, height, self)
 		
 		self.__setConstants()
 		self.__setVariables()
 		
-		self.ProductFuncs = productFuncs
-		self.ScreenFuncs = screenFuncs
-		self.UserFuncs = userFuncs
+		self.ScreenManager = manager
+		self.Owner = owner
 		
 	###
 	### Public Functions
 	###
 	
-	def setActive(self, state):
-		pass
+	def SetActive(self, state):
+		
+		if (not self.active) and state:
+			#On transition from inactive->active, update the GUI
+			self.active = state
+			self.__update()
+		else:
+			#Otherwise, just set new the active state
+			self.active = state
 				
 	def draw(self, window):
 		self.logger.info("Drawing self")
@@ -43,67 +49,72 @@ class MainScreen:
 		self.gui.clearProducts()
 		self.gui.setUnknownUser()
 		
-		self.UserFuncs.Forget()
-		self.ProductFuncs.RemoveAll()
+		self.Owner.ForgetUser()
+		self.Owner.ForgetProducts()
 			
 	def OnGuiEvent(self, pos):
 		
-		if self.acceptInput:
+		if self.active:
 			self.lastGuiPosition = pos
 			self.SM.onStateEvent(self.events.GUIEVENT)
 
-	def OnScan(self, product, __barcode):
+	def OnScan(self, product):
 		self.newProduct = product
-		if self.acceptInput:
+		if self.active:
 			self.SM.onStateEvent(self.events.SCAN)
 			
 	def OnBadScan(self, badcode):
-		if self.acceptInput:
+		if self.active:
 			self.badcode = badcode
 			self.SM.onStateEvent(self.events.BADSCAN)
-		
+	
+	def OnKeyEvent(self, key):
+		pass
+	
 	def OnRFID(self):
-		if self.acceptInput:
+		if self.active:
 			self.SM.onStateEvent(self.events.RFID)
 	
 	def OnBadRFID(self):
-		if self.acceptInput:
+		if self.active:
 			self.SM.onStateEvent(self.events.BADRFID)
 	
 	def TotalPrice(self):
 		return self.__totalPrice()
 	
 	def UserLogged(self):
-		return self.__isUserLogged()
+		return (self.__user is not None)
 	
 	def UserAllowCredit(self):
-		return self.__userAllowCredit()
-	
-	###
-	### Private Functions
-	###
-	
-	def __totalPrice(self):
-		return self.ProductFuncs.TotalPrice()
-	
-	def __requestRedraw(self):
-		self.ScreenFuncs.RequestScreen(Screens.MAINSCREEN)
-		return self.states.IDLE
-	
-	def __isUserLogged(self):
-		return self.__user
-	
-	def __isUserInDebt(self):
-		try:
-			return self.__user.getBalance() < 0
-		except AttributeError:
-			return True
-	
-	def __userAllowCredit(self):
 		try:
 			return self.__user.creditAllowed()
 		except AttributeError:
 			return False
+	
+	def UserAddedCredit(self):
+		return (self.__user.Credit > 0)
+	###
+	### Private Functions
+	###
+	
+	def __update(self):
+		
+		if self.__user:
+			self.gui.setUser(self.__user.Name, self.__user.Balance, self.__user.Credit)
+		else:
+			self.gui.setUnknownUser()
+			
+		products = self.Owner.RequestAllProducts()
+		
+		for product in products:
+			self.OnScan(product)
+
+	def __totalPrice(self):
+		return self.Owner.TotalPrice()
+	
+	def __requestRedraw(self):
+		self.ScreenManager.Req(Screens.MAINSCREEN)
+		return self.states.IDLE
 	
 	def __setVariables(self):
 		
@@ -114,10 +125,14 @@ class MainScreen:
 			SimpleStateMachineEntry(self.states.IDLE, self.events.BADSCAN, 			self.__onIdleBadScanEvent),
 			SimpleStateMachineEntry(self.states.IDLE, self.events.RFID, 			self.__onRFIDEvent),
 			SimpleStateMachineEntry(self.states.IDLE, self.events.BADRFID, 			self.__onBadRFIDEvent),
-			SimpleStateMachineEntry(self.states.IDLE, self.events.PRODUCTUPDATED, 	self.__requestRedraw),
-									
-			SimpleStateMachineEntry(self.states.PAYMENTMESSAGE,	 self.events.BANNERTIMEOUT,	self.__returnToIntro),
-								
+												
+			SimpleStateMachineEntry(self.states.PAYMENTMSG,	self.events.BANNERTIMEOUT,	self.__returnToIntro),
+			SimpleStateMachineEntry(self.states.PAYMENTMSG,	self.events.GUIEVENT, 		lambda: self.states.PAYMENTMSG),
+			SimpleStateMachineEntry(self.states.PAYMENTMSG, self.events.SCAN, 			lambda: self.states.PAYMENTMSG),
+			SimpleStateMachineEntry(self.states.PAYMENTMSG, self.events.BADSCAN, 		lambda: self.states.PAYMENTMSG),
+			SimpleStateMachineEntry(self.states.PAYMENTMSG, self.events.RFID, 			lambda: self.states.PAYMENTMSG),
+			SimpleStateMachineEntry(self.states.PAYMENTMSG, self.events.BADRFID, 		lambda: self.states.PAYMENTMSG),
+													
 			SimpleStateMachineEntry(self.states.WARNING, self.events.BANNERTIMEOUT, self.__removeWarning),
 			SimpleStateMachineEntry(self.states.WARNING, self.events.SCAN, 			self.__onIdleScanEvent),
 			SimpleStateMachineEntry(self.states.WARNING, self.events.BADSCAN, 		self.__updateBarcodeWarning),
@@ -129,11 +144,9 @@ class MainScreen:
 									
 		self.logger = logging.getLogger("MainScreen")
 		
-		self.acceptInput = True
-		
 	def __setConstants(self):
-		self.states = Enum(["IDLE", "PAYMENTMESSAGE", "WARNING"])
-		self.events = Enum(["GUIEVENT", "SCAN", "BADSCAN", "RFID", "BADRFID", "PRODUCTUPDATED", "BANNERTIMEOUT"])
+		self.states = Enum(["IDLE", "PAYMENTMSG", "WARNING"])
+		self.events = Enum(["GUIEVENT", "SCAN", "BADSCAN", "RFID", "BADRFID", "BANNERTIMEOUT"])
 
 	def __onIdleGuiEvent(self):
 		
@@ -153,7 +166,7 @@ class MainScreen:
 			nextState = self.__returnToIntro()
 			
 		if (button == self.gui.PAY):
-			self.ScreenFuncs.RequestScreen(Screens.NUMERICENTRY)
+			self.ScreenManager.Req(Screens.NUMERICENTRY)
 		
 		if (button == self.gui.DOWN):
 			self.gui.moveDown()
@@ -168,7 +181,7 @@ class MainScreen:
 			product = self.gui.getProductAtPosition(pos)
 			self.logger.info("Removing product %s" % product.Barcode)
 						
-			if self.ProductFuncs.RemoveProduct(product) == 0:
+			if self.Owner.RemoveProduct(product) == 0:
 				# No products of this type left in list
 				self.gui.removeProduct(product)
 
@@ -199,7 +212,7 @@ class MainScreen:
 			elif transAllowedState == self.__user.XACTION_DENIED:
 				## Do not add the product to screen. Request removal from product list and warn user
 				self.gui.SetBannerWithTimeout("Sorry, you have reached your credit limit!", 4, RGB_ERROR_FG, self.__bannerTimeout)
-				self.ProductFuncs.RemoveProduct(self.newProduct)
+				self.Owner.RemoveProduct(self.newProduct)
 				nextState = self.states.WARNING
 		else:
 			#Assume that the user is allowed to buy this
@@ -223,7 +236,7 @@ class MainScreen:
 	
 		self.logger.info("Got user %s" % self.__user.Name)
 		self.gui.HideBanner()
-		self.gui.setUser(self.__user.Name, self.__user.Balance)		
+		self.gui.setUser(self.__user.Name, self.__user.Balance, self.__user.Credit)		
 		self.__requestRedraw()
 		
 		return self.SM.state
@@ -251,19 +264,28 @@ class MainScreen:
 		return self.states.IDLE
 		
 	def __returnToIntro(self):
+		
+		self.gui.HideBanner()
 		self.clearAll()
-		self.ScreenFuncs.RequestScreen(Screens.INTROSCREEN)
+		self.ScreenManager.Req(Screens.INTROSCREEN)
 		return self.states.IDLE
 	
 	def __chargeUser(self):
 		self.acceptInput = False
 		
-		nextState = self.states.PAYMENTMESSAGE
+		nextState = self.states.PAYMENTMSG
 		
 		amountinpounds = self.__totalPrice() / 100
+		creditinpounds = self.__user.Credit / 100
+		bannerWidth = 0.6
 		
-		if self.UserFuncs.ChargeAll() == True:
-			self.gui.SetBannerWithTimeout("Thank you! You have been charged \xA3%.2f" % amountinpounds, 8, RGB_INFO_FG, self.__bannerTimeout)
+		if self.Owner.ChargeAll() == True:
+			text = u"Thank you! You have been charged \xA3%.2f" % amountinpounds
+			if creditinpounds > 0:
+				text += u" and credited \xA3%.2f" % creditinpounds
+				bannerWidth = 0.8
+				
+			self.gui.SetBannerWithTimeout(text, 8, RGB_INFO_FG, self.__bannerTimeout, bannerWidth)
 		else:
 			self.gui.SetBannerWithTimeout("An error occurred and has been logged.", 10, RGB_ERROR_FG, self.__bannerTimeout)
 			self.logger.error("Failed to charge user %s %d pence")
@@ -274,4 +296,4 @@ class MainScreen:
 	
 	@property
 	def __user(self):
-		return self.UserFuncs.Get()
+		return self.Owner.User

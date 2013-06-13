@@ -30,10 +30,14 @@ class User:
 				transactionState = self.XACTION_OVERLIMIT
 			elif self.__limitAction == 'deny':
 				transactionState = self.XACTION_DENIED
-		
+			else:
+				transactionState = self.XACTION_DENIED
+
 		return transactionState
 	
 	def creditAllowed(self):
+		
+		creditAllowed = False ## Assume that adding extra credit is not allowed
 		
 		if self.__allowCredit == 'always':
 			creditAllowed = True
@@ -48,7 +52,7 @@ class User:
 		return creditAllowed
 	
 	def addCredit(self, amount):
-		self.__creditAdded += amount
+		self.__creditAdded += int(amount)
 		
 	##
 	## Property getters
@@ -60,6 +64,10 @@ class User:
 	@property
 	def Balance(self):
 		return self.__balance
+	
+	@property
+	def Credit(self):
+		return self.__creditAdded
 	
 	@property
 	def Limit(self):

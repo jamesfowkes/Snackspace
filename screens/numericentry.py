@@ -6,14 +6,14 @@ from numericentry_gui import NumericEntryGUI
 
 class NumericEntry:
 
-	def __init__(self, width, height, screenFuncs, userFuncs):
+	def __init__(self, width, height, manager, owner):
 		
 		self.gui = NumericEntryGUI(width, height, self)	
 		self.amountinpence = 0
 		self.presetAmount = False
 	
-		self.ScreenFuncs = screenFuncs
-		self.UserFuncs = userFuncs
+		self.ScreenManager = manager
+		self.Owner = owner
 		
 	def draw(self, window):
 		self.gui.draw(window)
@@ -38,14 +38,32 @@ class NumericEntry:
 				self.presetAmount = True
 				self.__setAmount(2000)
 			elif button == self.gui.DONE:
-				self.__chargeAndExit()
+				self.__creditAndExit()
 			elif button == self.gui.CANCEL:
 				self.__exit()
-
+				
+	def SetActive(self, state):
+		self.acceptInput = state
+	
+	def OnScan(self, product):
+		pass
+			
+	def OnBadScan(self, badcode):
+		pass
+	
+	def OnKeyEvent(self, key):
+		pass
+	
+	def OnRFID(self):
+		pass
+	
+	def OnBadRFID(self):
+		pass
+	
 	def __setAmount(self, amount):
 		self.amountinpence = amount
 		self.gui.updateAmount(self.amountinpence)
-		self.ScreenFuncs.RequestScreen(Screens.NUMERICENTRY)
+		self.ScreenManager.Req(Screens.NUMERICENTRY)
 		
 	def __newButtonPress(self, key):
 		
@@ -62,13 +80,13 @@ class NumericEntry:
 			self.amountinpence += key
 		
 			self.gui.updateAmount(self.amountinpence)
-			self.ScreenFuncs.RequestScreen(Screens.NUMERICENTRY)
+			self.ScreenManager.Req(Screens.NUMERICENTRY)
 		
-	def __chargeAndExit(self):
-		self.UserFuncs.PayDebt(self.amountinpence)
+	def __creditAndExit(self):
+		self.Owner.CreditUser(self.amountinpence)
 		self.__exit()
 		
 	def __exit(self):
 		self.__setAmount(0)
-		self.ScreenFuncs.RequestScreen(Screens.MAINSCREEN)
+		self.ScreenManager.Req(Screens.MAINSCREEN)
 		

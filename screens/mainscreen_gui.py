@@ -271,13 +271,20 @@ class MainScreenGUI(ScreenGUI):
 		return objectId
 	
 	def setUnknownUser(self):
-		self.objects[self.TOPBAR].setText("Username: <Unknown card>")
+		self.objects[self.TOPBAR].setText("User: <Unknown card>")
 		
-	def setUser(self, name, balance):
+	def setUser(self, name, balance, credit):
 		if balance >= 0:
-			self.objects[self.TOPBAR].setText(u"Username: %s (Balance: \xA3%.2f)" % (name, balance / 100))
+			text = u"%s (Balance: \xA3%.2f" % (name, balance / 100)
 		else:
-			self.objects[self.TOPBAR].setText(u"Username: %s (Balance: -\xA3%.2f)" % (name, -balance / 100))
+			text = u"%s (Balance: -\xA3%.2f" % (name, -balance / 100)
+		
+		if credit > 0:
+			text += u", Pending Credit: \xA3%.2f" % (credit / 100)
+				
+		text += ")"
+		
+		self.objects[self.TOPBAR].setText(text)
 				
 	def testDisplayUpButton(self):
 		return (self.topProductIndex > 0)
@@ -346,7 +353,8 @@ class MainScreenGUI(ScreenGUI):
 		
 		# Decide which objects should be shown
 		self.objects[self.PAY].visible = self.owner.UserLogged() and self.owner.UserAllowCredit()
-		self.objects[self.DONE].visible = (len(self.productDisplays) > 0) and self.owner.UserLogged()
+		self.objects[self.DONE].visible = self.owner.UserAddedCredit () or (len(self.productDisplays) > 0)
+		self.objects[self.DONE].visible = self.objects[self.DONE].visible and self.owner.UserLogged()
 		self.objects[self.UP].visible = self.testDisplayUpButton()
 		self.objects[self.DOWN].visible = self.testDisplayDownButton()
 		

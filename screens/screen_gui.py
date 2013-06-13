@@ -14,7 +14,7 @@ class ScreenGUI:
 		self.w = w
 		self.h = h
 		self.lastPressId = -1
-		self.acceptGUIEvents = True
+		self.active = True
 		self.banner = None
 		
 		try:
@@ -28,7 +28,7 @@ class ScreenGUI:
 		
 		objectId = -1
 		
-		if self.acceptGUIEvents:
+		if self.active:
 			for key, guiObject in self.objects.items():
 				if guiObject.collidePoint(pos) and guiObject.visible:
 					objectId = key
@@ -42,14 +42,16 @@ class ScreenGUI:
 	def playSound(self):
 		pass #self.sound.play()
 		
-	def SetBannerWithTimeout(self, text, timeout, colour, callback):
+	def SetBannerWithTimeout(self, text, timeout, colour, callback, widthFraction = 0.6):
 		
 		try:
 			self.timer.cancel()
 		except:
 			pass
 		
-		self.banner = LCARSCappedBar(pygame.Rect(self.w * 0.2, self.h / 2, self.w * 0.6, LARGE_BAR_W),
+		x = self.w * (1 - widthFraction) / 2
+		width = self.w * widthFraction
+		self.banner = LCARSCappedBar(pygame.Rect(x, self.h / 2, width , LARGE_BAR_W),
 			CapLocation.CAP_RIGHT + CapLocation.CAP_LEFT, text, colour, RGB_BG , True)
 		
 		if timeout > 0:

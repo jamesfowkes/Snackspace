@@ -127,6 +127,19 @@ class db:
 		
 		return result
 	
+	def AddProduct(self, _barcode, _description, _priceinpence):
+		
+		try:
+			self.db.products.insert(barcode = _barcode, shortdesc = _description, price = _priceinpence)
+			self.db.commit()
+			result = True;
+				
+		except:
+			
+			result = False;
+		
+		return result
+	
 	def __createTestDb(self):
 		
 		"""
