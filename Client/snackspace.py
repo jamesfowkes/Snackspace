@@ -44,6 +44,7 @@ class InputHandler: #pylint: disable=R0903
     FAKE_RFID = 2
     FAKE_GOOD_PRODUCT = 3
     FAKE_BAD_PRODUCT = 4
+    QUIT = 5
     
     def __init__(self):
         """ Initialise the class """
@@ -78,7 +79,10 @@ class InputHandler: #pylint: disable=R0903
     
         elif (event.key == pygame.K_f) and (pygame.key.get_mods() & pygame.KMOD_CTRL):
             result = self.FAKE_BAD_PRODUCT
-
+        
+        elif (event.key == pygame.K_c) and (pygame.key.get_mods() & pygame.KMOD_CTRL):
+            result = self.QUIT
+            
         return result
 
 class Snackspace: #pylint: disable=R0902
@@ -173,6 +177,9 @@ class Snackspace: #pylint: disable=R0902
         elif result == InputHandler.PRODUCT_ENTRY:
             ## Go to product entry screen
             self.screen_manager.req(Screens.PRODUCTENTRY)
+        
+        elif result == InputHandler.QUIT:
+            sys.exit()
 
     def rfid_task(self):
         """ To be run periodically to check for an RFID swipe """
