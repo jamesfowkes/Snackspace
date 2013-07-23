@@ -126,6 +126,23 @@ class DbClient:
         reply = Message.parse_xml(reply)
         return add_credit_successful(reply)
 
+    def get_random_product(self):
+        """ Pull the data for a random product - useful for testing """
+        packet = Packet("randomproduct", {})
+        message = Message(packet).get_xml()
+        
+        reply, _recvd = self.send(message)
+        reply = Message.parse_xml(reply)
+        reply = reply[0]
+        
+        if reply.type == "productdata":
+            barcode = reply.data['barcode']
+            desc = reply.data['description']
+            priceinpence = reply.data['priceinpence']
+            return (barcode, desc, priceinpence)
+        else:
+            raise BadReplyException
+    
     def find_server(self):
         """ Try TCP ports from 9999 to 11000 to find the server """
         server_port = 9999

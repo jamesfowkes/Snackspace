@@ -156,7 +156,8 @@ class Snackspace: #pylint: disable=R0902
             
         elif result == InputHandler.FAKE_GOOD_PRODUCT:
             ## Fake a good product scan
-            self.on_scan_event('7613033126321')
+            data = self.dbaccess.get_random_product()
+            self.on_scan_event(data[0])
             
         elif result == InputHandler.FAKE_RFID:
             ## Fake an RFID swipe

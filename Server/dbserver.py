@@ -44,13 +44,29 @@ class DbServer(Database):
                 reply.add_packet ( self.add_product_from_data(packet.data) )
             elif packet.type == "addcredit":
                 reply.add_packet( self.add_credit_from_data(packet.data) )
+            elif packet.type == "randomproduct":
+                reply.add_packet( self.get_random_product_packet() )
             elif packet.type == "pingreply":
                 pass # No action required for ping reply
             else:
                 self.logger.warning("Unknown packet '%s'" % packet.type)
 
         return reply.get_xml()
+       
+    def get_random_product_packet(self):
+        """ Get a random product and make packet """
+        result = self.get_random_product()
+        
+        datatype = 'productdata'
+        data =  {'barcode': '0', 'description': '', 'priceinpence':'0'} 
+        data['barcode'] = result['barcode']
+        data['description'] = result['shortdesc']
+        data['priceinpence'] = result['price']
+            
+        packet = Packet(datatype, data)
 
+        return packet
+    
     def get_product_from_data(self, data):
         """ Get a product packet """
         barcode = data['barcode']

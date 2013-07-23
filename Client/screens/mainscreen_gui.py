@@ -77,7 +77,7 @@ class MainScreenLayout:
         self.product_entries.price_x = self.product_entries.desc_x + self.product_entries.desc_w + Widths.BORDER
         self.product_entries.price_w = self.button_data.large_width / 2
         self.product_entries.remove_x = self.product_entries.price_x + self.product_entries.price_w + Widths.BORDER
-        self.product_entries.row_h = 100
+        self.product_entries.row_h = self.button_data.height + 20
         
     def get_done_rect(self):
         """ Return rectangle representing the Done button """
@@ -251,23 +251,25 @@ class MainScreenGUI(ScreenGUI):
 
             if (counter < self.product_displays.top_index):
                 # Hide all the products above the list product top
-                product.setVisible(False)
+                product.set_visible(False)
             elif visible_count < self.limits.screen_products:
                 # Show screen products based on their quantity
                 product.visible = True
                 visible_count += 1
             else:
                 # Hide products below list bottom
-                product.setVisible(False)
+                product.set_visible(False)
 
     def _draw_products(self, window):
 
         """ Draw all visible product objects on the window """
         
         # Iterate over all products in list
-        for index, product in enumerate(self.product_displays):
+        index = 0
+        for product in self.product_displays:
             if product.visible:
                 product.draw(self.layout, index, self._remove_button_width(), window)
+                index += 1
 
     def _draw_static_objects(self, window):
 

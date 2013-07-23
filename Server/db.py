@@ -10,6 +10,9 @@ import sqlalchemy
 import urllib
 import re
 from axiom.errors import SQLError
+from sqlsoup import Session
+
+import random
 
 TEST_DB_PATH = "data/test.dbase"
 TEST_DATA_PATH = "data/test_data.sql"
@@ -56,6 +59,8 @@ class Database:
 
             self.dbase = sqlsoup.SQLSoup("mysql://%s" % real_db_path)
 
+    random.seed()
+    
     def get_user(self, rfid):
         """ Query database for user based on rfid """
         result = {}
@@ -77,6 +82,21 @@ class Database:
 
         return result
 
+    def get_random_product(self):
+        """ Get a random product """
+        result = {}
+        product_count = self.dbase.products.count() - 1
+
+        session = Session()
+        random_index = random.randint(0, product_count)
+        
+        product_data = session.query(self.dbase.products)[random_index]
+        result['barcode'] = product_data.barcode
+        result['shortdesc'] = product_data.shortdesc
+        result['price'] = product_data.price
+        
+        return result
+        
     def get_product(self, barcode):
         """ Query database for product based on barcode """
         result = {}

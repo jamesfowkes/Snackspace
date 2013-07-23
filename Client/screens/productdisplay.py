@@ -35,6 +35,10 @@ class ProductDisplay():
         self.price_string = ''
         
         self.visible = True
+    
+    def set_visible(self, visible):
+        """ Sets the visible state of the product display """ 
+        self.visible = visible
         
     def collide_on_remove(self, pos):
         """ Remove the product entry at the given position """
