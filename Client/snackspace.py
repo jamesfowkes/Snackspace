@@ -304,8 +304,6 @@ def main(_argv=None):
 
     ## Read arguments from configuration file
     try:
-        import os
-        print os.getcwd()
         confparser = ConfigParser.ConfigParser()
         confparser.readfp(open(args.conffile))
 
