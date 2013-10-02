@@ -101,8 +101,12 @@ class Snackspace: #pylint: disable=R0902
         self.options = options
 
         self.input_handler = InputHandler()
-
-        self.dbaccess = DbClient(self.options.localdb)
+        
+        self.task_handler = TaskHandler(self)
+        self.task_handler.add_function(self.rfid_task, 500, True)
+        self.task_handler.add_function(self.db_task, 60000, True)
+        
+        self.dbaccess = DbClient(self.options.localdb, self.task_handler)
 
         self.logger = logging.getLogger("snackspace")
 
@@ -113,10 +117,6 @@ class Snackspace: #pylint: disable=R0902
 
         self.user = None
         self.products = []
-
-        self.task_handler = TaskHandler(self)
-        self.task_handler.add_function(self.rfid_task, 500, True)
-        self.task_handler.add_function(self.db_task, 60000, True)
 
         if not self.dbaccess.found_server:
             self.logger.warning("Could not find remote database")

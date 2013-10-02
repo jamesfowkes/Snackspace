@@ -24,7 +24,7 @@ class TimeoutException(Exception):
 class DbClient:
 
     """ Implementation of DbClient class """
-    def __init__(self, local):
+    def __init__(self, local, task_handler):
 
         """ Add a new product to the database """
         self.local = local
@@ -42,16 +42,25 @@ class DbClient:
         
         logging.basicConfig(level=logging.DEBUG)
         self.logger = logging.getLogger("DBClient")
+        
+        self.task_handler = task_handler
+        self.find_server_task = self.task_handler.add_function(self.find_server, 12000, false)
+        
+        self.look_for_server()
 
-        self.find_server()
-
+    def look_for_server(self):
+        self.found_server = false
+        self.test_port = 9999
+        
+        self.find_server_task.active = true
+        
     def ping_server(self):
         """ If the server was there the last time, test the connection again.
         If not, try to find it. """
         if self.found_server:
             self.test_connection()
         else:
-            self.find_server()
+            self.look_for_server()
 
         return self.found_server
 
@@ -144,13 +153,16 @@ class DbClient:
             raise BadReplyException
     
     def find_server(self):
-        """ Try TCP ports from 9999 to 11000 to find the server """
-        server_port = 9999
-
-        while (not self.found_server) and (server_port < 11000):
-            server_port = server_port + 1
-            self.server_address = (self.server_host, server_port)
+        """ Use the currently assigned test port to try finding the server """
+        if self.found_server == False:
+            
+            self.server_address = (self.server_host, self.test_port)
             self.test_connection()
+            
+            if self.found_server:
+                self.find_server_task.active = false
+            else:
+                self.test_port = (self.test_port + 1) if (self.test_port < 11000) else 9999
 
     def test_connection(self):
         """ Ping the server to test it's still there """
