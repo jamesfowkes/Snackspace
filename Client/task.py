@@ -37,6 +37,8 @@ class TaskHandler:
         new_task = Task(function, time, active)
         self._tasks.append(new_task)
 
+        return new_task
+        
     def tick(self):
         """
         Application must call this function every tick (tick length is application dependent)
