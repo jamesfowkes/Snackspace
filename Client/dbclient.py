@@ -44,15 +44,18 @@ class DbClient:
         self.logger = logging.getLogger("DBClient")
         
         self.task_handler = task_handler
-        self.find_server_task = self.task_handler.add_function(self.find_server, 12000, false)
+        self.find_server_task = self.task_handler.add_function(self.find_server, 12000, False)
         
         self.look_for_server()
 
     def look_for_server(self):
-        self.found_server = false
+        self.found_server = False
         self.test_port = 9999
         
-        self.find_server_task.active = true
+        self.find_server()
+        
+        if (self.found_server = False):
+            self.find_server_task.active = True
         
     def ping_server(self):
         """ If the server was there the last time, test the connection again.
@@ -170,6 +173,8 @@ class DbClient:
         ## Assume we are connected initially
         ## to let send method work
         self.found_server = True
+        
+        self.logging.info("Testing connection on %s port %d" % self.server_address)
         
         message = Message("ping")
         reply, received = self.send(message.get_xml())
