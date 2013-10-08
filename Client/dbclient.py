@@ -159,7 +159,7 @@ class DbClient:
         
         callback(reply[0].data['memberid'], int(reply[0].data['credit']), add_credit_successful(reply))
 
-    def get_random_product(self):
+    def get_random_product(self, callback):
         """ Pull the data for a random product - useful for testing """
         packet = Packet("randomproduct", {})
         message = Message(packet).get_xml()
@@ -168,14 +168,18 @@ class DbClient:
         reply = Message.parse_xml(reply)
         reply = reply[0]
         
+        data = None
+        
         if reply.type == "productdata":
             barcode = reply.data['barcode']
             desc = reply.data['description']
             priceinpence = reply.data['priceinpence']
-            return (barcode, desc, priceinpence)
+            data = (barcode, desc, priceinpence)
         else:
             raise BadReplyException
     
+        callback(data)
+        
     def ping_server(self):
         """ Ping the server to test it's still there """
         

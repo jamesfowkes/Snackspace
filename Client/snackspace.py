@@ -200,8 +200,7 @@ class Snackspace: #pylint: disable=R0902
             
         elif result == InputHandler.FAKE_GOOD_PRODUCT:
             ## Fake a good product scan
-            data = self.dbaccess.get_random_product()
-            self.on_scan_event(data[0])
+            self.dbaccess.get_random_product(self.on_db_random_product_callback)
             
         elif result == InputHandler.FAKE_RFID:
             ## Fake an RFID swipe
@@ -237,7 +236,11 @@ class Snackspace: #pylint: disable=R0902
                 self.screen_manager.get(Screens.MAINSCREEN).clear_all()
                 self.forget_products()
                 self.forget_user()
-
+    
+    def on_db_random_product_callback(self, data):
+        """ Callback when random product data is returned from the database """
+        self.on_scan_event(data[0])
+        
     def on_swipe_event(self, cardnumber):
         """ When an RFID swipe is made, gets user from the database """
         if not self.dbaccess.found_server:
@@ -307,6 +310,7 @@ class Snackspace: #pylint: disable=R0902
 
         if product is not None:
             product.increment() # Product already exists once, so just increment its count
+            self.screen_manager.current.on_scan(product)
         else:
             #Otherwise need to get product info from the database
             self.dbaccess.get_product(barcode, self.on_db_got_product_data)

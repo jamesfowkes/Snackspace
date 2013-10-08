@@ -111,7 +111,11 @@ class MainScreen(Screen, MainScreenGUI):
     def user_added_credit(self):
         """ Has the user added credit to their account? """
         return (self.user.Credit > 0)
-
+    
+    def total_price(self):
+        """ Abstraction for total price """
+        return self.owner.total_price()
+    
     def _update_on_active(self):
         """ When active state changes, this is called to update screen """
         if self.user:
@@ -122,9 +126,7 @@ class MainScreen(Screen, MainScreenGUI):
         for product in self.owner.products:
             self.on_scan(product)
 
-    def total_price(self):
-        """ Abstraction for total price """
-        return self.owner.total_price()
+
 
     def _on_idle_gui_event(self):
 
