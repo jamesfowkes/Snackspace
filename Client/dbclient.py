@@ -33,6 +33,7 @@ class DbClient:
         self.found_server = False
         self.state_callback = callback
         self.test_port = 10000
+        self.first_update = True
         
         if self.local:
             self.server_host = 'localhost'
@@ -103,6 +104,7 @@ class DbClient:
         data = None
         
         if reply.type == "userdata":
+            rfid = reply.data['rfid']
             username = reply.data['username']
             balance = reply.data['balance']
             limit = reply.data['limit']
@@ -113,7 +115,7 @@ class DbClient:
         else:
             self.logger.info("Unrecognised rfid %s" % rfid)
 
-        callback(data)
+        callback(rfid, data)
         
     def send_transactions(self, productdata, member_id):
         """ Send transaction requests to the server """
@@ -190,7 +192,8 @@ class DbClient:
             self.logger.info("No reply to ping received!")
             self.found_server = False
         
-        self.state_callback(old_connection_state, self.found_server)
+        self.state_callback(old_connection_state, self.found_server, self.first_update)
+        self.first_update = False
         
     def send(self, message):
         """ Sends message on current socket and waits for response """

@@ -179,18 +179,15 @@ class Snackspace: #pylint: disable=R0902
         if rfid is not None:
             self.on_swipe_event( self.rfid.mangle_rfid(rfid) )
 
-    def db_state_callback(self, old_state, new_state):
+    def db_state_callback(self, old_state, new_state, first_update):
         """ Callback when database state changes """
         
-        self.screen_manager.get(Screens.INTROSCREEN).set_db_state(new_state)
-        self.screen_manager.get(Screens.INTROSCREEN)
-        if not new_state:
-            self.logger.debug("Lost server connection.")
-            self.screen_manager.get(Screens.MAINSCREEN).clear_all()
-            self.forget_products()
-            self.forget_user()
-        else:
-            self.logger.debug("Got server connection.")
+        if old_state != new_state or first_update:
+            self.screen_manager.get(Screens.INTROSCREEN).set_db_state(new_state)
+            if not new_state:
+                self.screen_manager.get(Screens.MAINSCREEN).clear_all()
+                self.forget_products()
+                self.forget_user()
 
     def on_swipe_event(self, cardnumber):
         """ When an RFID swipe is made, gets user from the database """

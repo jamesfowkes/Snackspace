@@ -150,6 +150,7 @@ class DbServer(Database):
         result = self.get_user(rfid)
 
         if result is not None:
+            data['rfid'] = result['rfid']
             data['memberid'] = result['memberid']
             data['username'] = result['username']
             data['balance'] = result['balance']
