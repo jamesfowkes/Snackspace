@@ -36,6 +36,55 @@ from collections import namedtuple
 
 SnackspaceOptions = namedtuple("SnackspaceOptions", "localdb rfid_port limit_action credit_action") #pylint: disable=C0103
 
+class ChargeAllHandler:
+    
+    """ Handles the "charge all" functionality, where:
+    1. The user is charged for products purchased and the database
+    transactions tables is updated
+    2. The user is credited with any extra monies added
+    
+    As these are handled as two seperate DB transactions, a distint class
+    makes handling easier
+    """
+    
+    def __init__(self, db, user, products, callback):
+        
+        self.callback = callback
+        self.transaction_total = 0
+        self.user = user
+        self.dbaccess = db
+        
+        if user is not None:
+            products = [(product.barcode, product.count) for product in products]
+            self.dbaccess.send_transactions(products, self.user.member_id, self.on_db_send_transactions_callback)
+        else:
+            callback(0, 0, False)
+        
+
+    def on_db_send_transactions_callback(self, member_id, transaction_total, success):
+        
+        self.transaction_total = transaction_total
+        
+        success = success and (member_id == self.user.member_id)
+        
+        if success:
+            if (self.user.credit > 0):
+                self.dbaccess.add_credit(self.user.member_id, self.user.credit, self.on_db_add_credit_callback)
+            else:
+                self.callback( transaction_total,0, success)
+        else:
+            self.callback( 0, 0, success)
+            
+    
+    def on_db_add_credit_callback(self, member_id, credit, success):
+        
+        success = success and (member_id == self.user.member_id)
+        
+        if success:
+            self.callback(self.transaction_total, credit, success)
+        else:
+            self.callback(self.transaction_total, 0, success)
+
 class InputHandler: #pylint: disable=R0903
     """ Implements functionality for managing keyboard input """
     
@@ -217,20 +266,11 @@ class Snackspace: #pylint: disable=R0902
 
         self.add_product_to_basket(barcode)
 
-    def charge_all(self):
-        """ Charge the current user for the current set of products """ 
-        success = False
-        if self.user is not None:
-            products = [(product.barcode, product.count) for product in self.products]
-            success = self.dbaccess.send_transactions(products, self.user.member_id)
-        else:
-            success =  False
-
-        if (self.user.credit > 0):
-            success = success and self.dbaccess.add_credit(self.user.member_id, self.user.credit)
-
-        return success
-
+    def charge_all(self, callback):
+        
+        """ Charge the current user for the current set of products """
+        ChargeAllHandler(self.dbaccess, self.user, self.products, callback)
+            
     def credit_user(self, amount):
         """ Adds credit to a user's account """
         self.user.add_credit(amount)

@@ -131,10 +131,10 @@ class Database:
 
             self.dbase.commit()
 
-            result = True
+            result = True, product_data.price * count
 
         except SQLError:
-            result = False
+            result = False, 0
 
         return result
 

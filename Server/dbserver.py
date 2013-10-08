@@ -106,7 +106,7 @@ class DbServer(Database):
 
         result = self.add_credit(memberid, amountinpence)
 
-        packet = Packet("result", {"action":"addcredit", "result": "Success" if result else "Fail", "memberid":memberid})
+        packet = Packet("result", {"action":"addcredit", "credit": amountinpence, "result": "Success" if result else "Fail", "memberid":memberid})
 
         return packet
 
@@ -116,9 +116,9 @@ class DbServer(Database):
         barcode = data['barcode']
         count = int(data['count'])
 
-        result = self.transaction(memberid, barcode, count)
+        result, total = self.transaction(memberid, barcode, count)
 
-        packet = Packet("result", {"action":"transaction", "barcode":barcode, "result": "Success" if result else "Fail", "memberid":memberid})
+        packet = Packet("result", {"action":"transaction", "barcode":barcode, "total":total, "result": "Success" if result else "Fail", "memberid":memberid})
 
         return packet
 

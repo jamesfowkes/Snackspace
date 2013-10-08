@@ -120,7 +120,7 @@ class DbClient:
 
         callback(rfid, data)
         
-    def send_transactions(self, productdata, member_id):
+    def send_transactions(self, productdata, member_id, callback):
         """ Send transaction requests to the server """
         self.logger.info("Sending transactions")
 
@@ -132,7 +132,10 @@ class DbClient:
 
         reply, _recvd = self.send(message.get_xml())
         reply = Message.parse_xml(reply)
-        return transactions_successful(reply)
+        
+        packet = reply[0]
+        
+        callback( packet.data['memberid'], transaction_total(reply), transactions_successful(reply) )
 
     def add_product(self, barcode, description, price_in_pence, callback):
         """ Add a new product to the database """
@@ -146,14 +149,15 @@ class DbClient:
         
         callback(packet.data['barcode'], packet.data['description'], add_product_successful(reply))
         
-    def add_credit(self, member_id, amountinpence):
+    def add_credit(self, member_id, amountinpence, callback):
         """ Add credit to a user account """
         packet = Packet("addcredit", {"memberid":member_id, "amountinpence":amountinpence})
         message = Message(packet).get_xml()
 
         reply, _recvd = self.send(message)
         reply = Message.parse_xml(reply)
-        return add_credit_successful(reply)
+        
+        callback(reply[0].data['memberid'], int(reply[0].data['credit']), add_credit_successful(reply))
 
     def get_random_product(self):
         """ Pull the data for a random product - useful for testing """
@@ -268,6 +272,16 @@ def parse_reply(message):
         if packettype == "ping":
             return Message("pingreply")
 
+def transaction_total(reply):
+    """ Parses reply for the sum of all transactions """
+    sum = 0
+
+    for packet in reply:
+        if packet.type == "result" and packet.data['action'] == "transaction":
+            sum = sum + int(packet.data['total'])
+
+    return sum
+    
 def transactions_successful(reply):
     """ Parses reply for a successful set of transactions """
     success = True

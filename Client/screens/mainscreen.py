@@ -26,8 +26,8 @@ class MainScreen(Screen, MainScreenGUI):
         Screen.__init__(self, manager, owner, Screens.MAINSCREEN)
         MainScreenGUI.__init__(self, width, height, self)
         
-        self.states = Enum("IDLE", "PAYMENTMSG", "WARNING")
-        self.events = Enum("GUIEVENT", "SCAN", "BADSCAN", "RFID", "BADRFID", "BANNERTIMEOUT")
+        self.states = Enum("IDLE", "CHARGING", "PAYMENTMSG", "WARNING")
+        self.events = Enum("GUIEVENT", "SCAN", "BADSCAN", "RFID", "BADRFID", "CHARGED", "BANNERTIMEOUT")
         
         self.sm = SimpleStateMachine(self.states.IDLE, #pylint: disable=C0103
         [
@@ -43,7 +43,14 @@ class MainScreen(Screen, MainScreenGUI):
                 [self.states.PAYMENTMSG,    self.events.BADSCAN,        lambda: self.states.PAYMENTMSG],
                 [self.states.PAYMENTMSG,    self.events.RFID,           lambda: self.states.PAYMENTMSG],
                 [self.states.PAYMENTMSG,    self.events.BADRFID,        lambda: self.states.PAYMENTMSG],
-
+                
+                [self.states.CHARGING,      self.events.CHARGED,        lambda: self.states.PAYMENTMSG],
+                [self.states.CHARGING,      self.events.GUIEVENT,       lambda: self.states.CHARGING],
+                [self.states.CHARGING,      self.events.SCAN,           lambda: self.states.CHARGING],
+                [self.states.CHARGING,      self.events.BADSCAN,        lambda: self.states.CHARGING],
+                [self.states.CHARGING,      self.events.RFID,           lambda: self.states.CHARGING],
+                [self.states.CHARGING,      self.events.BADRFID,        lambda: self.states.CHARGING],
+                
                 [self.states.WARNING,       self.events.BANNERTIMEOUT,  self._remove_warning],
                 [self.states.WARNING,       self.events.SCAN,           self._on_idle_scan_event],
                 [self.states.WARNING,       self.events.BADSCAN,        self._update_barcode_warning],
@@ -261,15 +268,22 @@ class MainScreen(Screen, MainScreenGUI):
 
     def _charge_user(self):
 
-        """ Calculate the final amount to charge the user and request the charge 
-        Then show appropriate banner """
-        next_state = self.states.PAYMENTMSG
-
-        amountinpounds = self.total_price() / 100
-        creditinpounds = self.user.credit / 100
+        """Request to charge the user and wait for reply """
+        self.set_banner_with_timeout("Charging...", 0, Colours.INFO, None)
+        
+        self.owner.charge_all(self._charge_user_callback)
+        self._request_redraw()
+        return self.states.CHARGING
+            
+    def _charge_user_callback(self, total_price, credit, success):
+        
+        """ Show appropriate banner """
+        
+        amountinpounds = total_price / 100
+        creditinpounds = credit / 100
         banner_width = 0.6
-
-        if self.owner.charge_all() == True:
+        
+        if success:
             text = u"Thank you! You have been charged \xA3%.2f" % amountinpounds
             if creditinpounds > 0:
                 text += u" and credited \xA3%.2f" % creditinpounds
@@ -283,7 +297,7 @@ class MainScreen(Screen, MainScreenGUI):
 
         self._request_redraw()
 
-        return next_state
+        self.sm.on_state_event(self.events.CHARGED)
     
     def _request_redraw(self):
         """ Push a request for this screen to be drawn again """
