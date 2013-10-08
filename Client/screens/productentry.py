@@ -50,8 +50,16 @@ class ProductEntry(Screen, ProductEntryGUI): #pylint: disable=R0902
             (self.states.PRICE, self.events.BADSCAN,         lambda: self.states.DESCRIPTION),
 
             (self.states.ADDING, self.events.TIMEOUT,        self._exit),
-
+            (self.states.ADDING, self.events.GUIEVENT,       lambda: self.states.ADDING),
+            (self.states.ADDING, self.events.KEYPRESS,       lambda: self.states.ADDING),
+            (self.states.ADDING, self.events.SCAN,           lambda: self.states.ADDING),
+            (self.states.ADDING, self.events.BADSCAN,        lambda: self.states.ADDING),
+            
             (self.states.WARNING, self.events.TIMEOUT,       lambda: self.states.BARCODE),
+            (self.states.WARNING, self.events.GUIEVENT,       lambda: self.states.WARNING),
+            (self.states.WARNING, self.events.KEYPRESS,       lambda: self.states.WARNING),
+            (self.states.WARNING, self.events.SCAN,           lambda: self.states.WARNING),
+            (self.states.WARNING, self.events.BADSCAN,        lambda: self.states.WARNING),
         ])
 
     def on_key_event(self, char):
@@ -157,15 +165,19 @@ class ProductEntry(Screen, ProductEntryGUI): #pylint: disable=R0902
 
     def add_product(self):
         """ Try to add the new product to the database """
-        if self.owner.new_product(self.barcode, self.description, self.price):
-            self.set_banner_with_timeout("New product %s added!" % self.description, 3, Colours.INFO, self._banner_timeout)
+        self.owner.new_product(self.barcode, self.description, self.price, self._add_product_callback)
+    
+    def _add_product_callback(self, barcode, description, result):
+        """ Callback from database when adding product """
+        if result:
+            self.set_banner_with_timeout("New product %s added!" % description, 3, Colours.INFO, self._banner_timeout)
         else:
-            self.set_banner_with_timeout("New product %s was not added!" % self.description, 3, Colours.WARN, self._banner_timeout)
+            self.set_banner_with_timeout("New product %s was not added!" % description, 3, Colours.WARN, self._banner_timeout)
 
         self._request_redraw()
 
         return self.states.ADDING
-
+    
     def _got_new_barcode(self):
         """ On a new barcode scan, update the barcode field """
         self.change_barcode(self.barcode)
@@ -190,5 +202,9 @@ class ProductEntry(Screen, ProductEntryGUI): #pylint: disable=R0902
 
     def _exit(self):
         """ Request a return to the intro screen """
+        self.reset_entry(self.buttons.BARCODE)
+        self.reset_entry(self.buttons.PRICE)
+        self.reset_entry(self.buttons.DESCRIPTION)
+        
         self.screen_manager.req(Screens.INTROSCREEN)
         return self.states.BARCODE

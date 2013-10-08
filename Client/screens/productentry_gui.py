@@ -61,7 +61,16 @@ class ProductEntryGUI(ScreenGUI):
         # #
         self.objects.update(border.get_border())
 
-
+    def reset_entry(self, entry):
+        
+        """ Reset the text of the selected entry to the default """
+        if entry == self.buttons.BARCODE:
+            self.objects[entry].fg = Colours.FG
+        else:
+            self.objects[entry].fg = Colours.ERR
+            
+        self.objects[entry].setText(self.default_text[entry])
+        
     def set_active_entry(self, entry):
 
         """ Change the current entry textbox to one of barcode, description or price """

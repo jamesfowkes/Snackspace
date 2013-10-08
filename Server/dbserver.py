@@ -93,7 +93,7 @@ class DbServer(Database):
 
         result = self.add_product(_barcode, _desc, _priceinpence)
 
-        packet = Packet("result", {"action":"addproduct", "result": "Success" if result else "Fail"})
+        packet = Packet("result", {"action":"addproduct", "barcode":_barcode, "description": _desc, "result": "Success" if result else "Fail"})
 
         return packet
 

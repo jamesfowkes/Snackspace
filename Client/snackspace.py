@@ -198,7 +198,7 @@ class Snackspace: #pylint: disable=R0902
 
     def on_db_got_user_data(self, cardnumber, userdata):
 
-        """ Callback when database state changes """
+        """ Callback when user data returned """
         if userdata is not None:
             self.user = User(*userdata, options = self.options) #pylint: disable=W0142
             self.logger.debug("Got user %s" % self.user.name)
@@ -257,10 +257,10 @@ class Snackspace: #pylint: disable=R0902
         """ Delete the product basket """
         self.products = []
 
-    def new_product(self, barcode, description, priceinpence):
+    def new_product(self, barcode, description, priceinpence, callback):
         """ Add a new product to the database """
-        return self.dbaccess.add_product(barcode, description, priceinpence)
-
+        self.dbaccess.add_product(barcode, description, priceinpence, callback)
+        
     def add_product_to_basket(self, barcode):
         """ Adds a new scanned product to the list ('basket') of scanned products """
         product = next((product for product in self.products if barcode == product.barcode), None)
@@ -273,6 +273,8 @@ class Snackspace: #pylint: disable=R0902
 
     def on_db_got_product_data(self, barcode, productdata):
      
+        """ Callback when product data returned """
+        
         product = None
 
         if productdata:

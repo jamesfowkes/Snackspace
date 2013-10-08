@@ -134,15 +134,18 @@ class DbClient:
         reply = Message.parse_xml(reply)
         return transactions_successful(reply)
 
-    def add_product(self, barcode, description, price_in_pence):
+    def add_product(self, barcode, description, price_in_pence, callback):
         """ Add a new product to the database """
         packet = Packet("addproduct", {"barcode":barcode, "description":description, "price_in_pence":price_in_pence})
         message = Message(packet).get_xml()
 
         reply, _recvd = self.send(message)
         reply = Message.parse_xml(reply)
-        return add_product_successful(reply)
-
+        
+        packet = reply[0]
+        
+        callback(packet.data['barcode'], packet.data['description'], add_product_successful(reply))
+        
     def add_credit(self, member_id, amountinpence):
         """ Add credit to a user account """
         packet = Packet("addcredit", {"memberid":member_id, "amountinpence":amountinpence})
