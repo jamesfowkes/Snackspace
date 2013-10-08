@@ -57,13 +57,17 @@ class MainScreen(Screen, MainScreenGUI):
 
         self.new_product = None
         self.badcode = ""
-        
+    
+    
     def on_gui_event(self, pos):
         """ Called from owner to trigger a GUI press """
         if self.active:
             self.last_gui_position = pos
             self.sm.on_state_event(self.events.GUIEVENT)
-
+            
+    def clear_all(self):
+        pass
+    
     def on_scan(self, product):
         """ Called from owner to trigger a known product scan """
         self.new_product = product

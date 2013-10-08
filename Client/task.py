@@ -15,10 +15,21 @@ class Task: #pylint: disable=R0903
         self.ticks = time
         self.active = active
 
+    def set_period(self, ticks):
+        """ Set a new task period """
+        self.active = False
+        self._period = ticks
+        self.reload()
+        self.active = True
+        
     def reload(self):
         """ Reset the remaining ticks to the task period """
         self.ticks = self._period
-        
+    
+    def trigger_now(self):
+        """ Immediately trigger the task regardless of time """
+        self.function()
+
 class TaskHandler:
     
     """

@@ -53,6 +53,8 @@ class IntroScreen(Screen, IntroScreenGUI):
         else:
             self.set_intro_text("Scan an item or swipe your card to start", Colours.FG)
     
+        self._request_redraw()
+        
     def _banner_timeout(self):
         """ Callback from GUI indicating banner has timed out """
         self.hide_banner()

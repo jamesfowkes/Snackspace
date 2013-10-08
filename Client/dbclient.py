@@ -24,15 +24,16 @@ class TimeoutException(Exception):
 class DbClient:
 
     """ Implementation of DbClient class """
-    def __init__(self, local, task_handler):
+    def __init__(self, local, task_handler, callback):
 
         """ Add a new product to the database """
         self.local = local
         self.sock = None
         
         self.found_server = False
-        self.callback = None
-
+        self.state_callback = callback
+        self.test_port = 10000
+        
         if self.local:
             self.server_host = 'localhost'
         else:
@@ -44,28 +45,33 @@ class DbClient:
         self.logger = logging.getLogger("DBClient")
         
         self.task_handler = task_handler
-        self.find_server_task = self.task_handler.add_function(self.find_server, 12000, False)
+        self.test_connection_task = self.task_handler.add_function(self.test_connection, 2000, True)
         
-        self.look_for_server()
-
-    def look_for_server(self):
-        self.found_server = False
-        self.test_port = 9999
+        self.reset_and_begin_search()
         
-        self.find_server()
-        
-        if (self.found_server = False):
-            self.find_server_task.active = True
-        
-    def ping_server(self):
-        """ If the server was there the last time, test the connection again.
-        If not, try to find it. """
-        if self.found_server:
-            self.test_connection()
+    def test_connection(self):
+        """ Periodic task to ping the server and check it's still there """
+        if self.found_server == False:
+            # The server hasn't been found yet, so keep testing
+            self.server_address = (self.server_host, self.test_port)
+            self.ping_server()
+            
+            if not self.found_server:
+                self.test_port = (self.test_port + 1) if (self.test_port < 10010) else 10000
+            else:
+                self.test_connection_task.set_period(10000)
         else:
-            self.look_for_server()
-
-        return self.found_server
+            # There should still be a server there, so ping it
+            self.ping_server()
+            if not self.found_server:
+                self.reset_and_begin_search()
+                    
+    def reset_and_begin_search(self):
+        """ Resets local server information and begins searching for it again """
+        self.found_server = False
+        self.test_port = 10000
+        self.test_connection_task.set_period(2000)
+        self.test_connection_task.trigger_now()
 
     def get_product(self, barcode):
         """ Get the product data associated with the barcode """
@@ -85,7 +91,7 @@ class DbClient:
         else:
             raise BadReplyException
 
-    def get_user_data(self, rfid):
+    def get_user_data(self, rfid, callback):
         """ Get the user data associated with the rfid """
         packet = Packet("getuser", {"rfid":rfid})
         message = Message(packet).get_xml()
@@ -94,18 +100,21 @@ class DbClient:
         reply = Message.parse_xml(reply)
         reply = reply[0]
 
+        data = None
+        
         if reply.type == "userdata":
             username = reply.data['username']
             balance = reply.data['balance']
             limit = reply.data['limit']
             member_id = reply.data['memberid']
             self.logger.info("Got user %s" % username)
-            return (member_id, username, balance, limit)
+            data = (member_id, username, balance, limit)
 
         else:
             self.logger.info("Unrecognised rfid %s" % rfid)
-            return None
 
+        callback(data)
+        
     def send_transactions(self, productdata, member_id):
         """ Send transaction requests to the server """
         self.logger.info("Sending transactions")
@@ -155,26 +164,15 @@ class DbClient:
         else:
             raise BadReplyException
     
-    def find_server(self):
-        """ Use the currently assigned test port to try finding the server """
-        if self.found_server == False:
-            
-            self.server_address = (self.server_host, self.test_port)
-            self.test_connection()
-            
-            if self.found_server:
-                self.find_server_task.active = false
-            else:
-                self.test_port = (self.test_port + 1) if (self.test_port < 11000) else 9999
-
-    def test_connection(self):
+    def ping_server(self):
         """ Ping the server to test it's still there """
         
         ## Assume we are connected initially
         ## to let send method work
+        old_connection_state = self.found_server 
         self.found_server = True
         
-        self.logging.info("Testing connection on %s port %d" % self.server_address)
+        self.logger.info("Testing connection on %s port %d" % self.server_address)
         
         message = Message("ping")
         reply, received = self.send(message.get_xml())
@@ -191,7 +189,9 @@ class DbClient:
         else:
             self.logger.info("No reply to ping received!")
             self.found_server = False
-
+        
+        self.state_callback(old_connection_state, self.found_server)
+        
     def send(self, message):
         """ Sends message on current socket and waits for response """
         received = 0
@@ -200,6 +200,8 @@ class DbClient:
         if self.found_server:
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
+            self.test_connection_task.active = False
+            
             signal.signal(signal.SIGALRM, self.timeout_handler)
             signal.alarm(10)
 
@@ -236,6 +238,7 @@ class DbClient:
 
             finally:
                 self.sock.close()
+                self.test_connection_task.active = True
 
         return data, received
 

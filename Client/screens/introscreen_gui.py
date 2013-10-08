@@ -45,7 +45,7 @@ class IntroScreenGUI(ScreenGUI):
         ## Position-dependant objects
         ##
 
-        self.set_intro_text("Scan an item or swipe your card to start", Colours.FG)
+        self.set_intro_text("Searching for remote database...", Colours.FG)
         self.set_intro_text_2("Don't have a card? Seeing error messages?", Colours.FG)
         self.set_intro_text_3("Pop money in the pot instead!", Colours.FG)
 

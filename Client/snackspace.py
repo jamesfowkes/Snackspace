@@ -104,26 +104,17 @@ class Snackspace: #pylint: disable=R0902
         
         self.task_handler = TaskHandler(self)
         self.task_handler.add_function(self.rfid_task, 500, True)
-        self.task_handler.add_function(self.db_task, 60000, True)
         
-        self.dbaccess = DbClient(self.options.localdb, self.task_handler)
-
         self.logger = logging.getLogger("snackspace")
 
         self.rfid = RFIDReader(self.options.rfid_port)
         
         self.screen_manager = ScreenManager(self, window, size)
-        self.screen_manager.get(Screens.INTROSCREEN).set_db_state(self.dbaccess.found_server)
 
         self.user = None
         self.products = []
 
-        if not self.dbaccess.found_server:
-            self.logger.warning("Could not find remote database")
-            self.screen_manager.req(Screens.INTROSCREEN)
-        else:
-            self.logger.debug("Found remote database")
-            self.screen_manager.get(Screens.INTROSCREEN).active = True
+        self.dbaccess = DbClient(self.options.localdb, self.task_handler, self.db_state_callback)
 
     def start(self):
         """ The main snackspace event loop """
@@ -188,29 +179,29 @@ class Snackspace: #pylint: disable=R0902
         if rfid is not None:
             self.on_swipe_event( self.rfid.mangle_rfid(rfid) )
 
-    def db_task(self):
-        """ To be run periodically to check the database status """
-        was_connected = self.dbaccess.found_server
-        connected = self.dbaccess.ping_server()
-
-        if connected != was_connected:
-            self.screen_manager.get(Screens.INTROSCREEN).set_db_state(connected)
-            self.screen_manager.get(Screens.INTROSCREEN)
-            if not connected:
-                self.logger.debug("Lost server connection.")
-                self.screen_manager.get(Screens.MAINSCREEN).clear_all()
-                self.forget_products()
-                self.forget_user()
-            else:
-                self.logger.debug("Got server connection.")
+    def db_state_callback(self, old_state, new_state):
+        """ Callback when database state changes """
+        
+        self.screen_manager.get(Screens.INTROSCREEN).set_db_state(new_state)
+        self.screen_manager.get(Screens.INTROSCREEN)
+        if not new_state:
+            self.logger.debug("Lost server connection.")
+            self.screen_manager.get(Screens.MAINSCREEN).clear_all()
+            self.forget_products()
+            self.forget_user()
+        else:
+            self.logger.debug("Got server connection.")
 
     def on_swipe_event(self, cardnumber):
         """ When an RFID swipe is made, gets user from the database """
         if not self.dbaccess.found_server:
             return
+        else:
+            self.dbaccess.get_user_data(cardnumber, self.on_db_got_user_data)
 
-        userdata = self.dbaccess.get_user_data(cardnumber)
+    def on_db_got_user_data(self, cardnumber, userdata):
 
+        """ Callback when database state changes """
         if userdata is not None:
             self.user = User(*userdata, options = self.options) #pylint: disable=W0142
             self.logger.debug("Got user %s" % self.user.name)
