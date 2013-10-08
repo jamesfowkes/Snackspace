@@ -74,11 +74,13 @@ class DbClient:
         self.test_connection_task.set_period(2000)
         self.test_connection_task.trigger_now()
 
-    def get_product(self, barcode):
+    def get_product(self, barcode, callback):
         """ Get the product data associated with the barcode """
         packet = Packet("getproduct", {"barcode":barcode})
         message = Message(packet).get_xml()
 
+        data = None
+        
         reply, _recvd = self.send(message)
         reply = Message.parse_xml(reply)
         reply = reply[0]
@@ -86,12 +88,14 @@ class DbClient:
         if reply.type == "productdata":
             desc = reply.data['description']
             priceinpence = reply.data['priceinpence']
-            return (barcode, desc, priceinpence)
+            data = (barcode, desc, priceinpence)
         elif reply.type == 'unknownproduct':
-            return None
+            data = None
         else:
             raise BadReplyException
 
+        callback(barcode, data)
+        
     def get_user_data(self, rfid, callback):
         """ Get the user data associated with the rfid """
         packet = Packet("getuser", {"rfid":rfid})
@@ -111,7 +115,6 @@ class DbClient:
             member_id = reply.data['memberid']
             self.logger.info("Got user %s" % username)
             data = (member_id, username, balance, limit)
-
         else:
             self.logger.info("Unrecognised rfid %s" % rfid)
 

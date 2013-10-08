@@ -215,12 +215,7 @@ class Snackspace: #pylint: disable=R0902
         if not self.dbaccess.found_server or len(barcode) == 0:
             return
 
-        newproduct = self.add_product_to_basket(barcode)
-
-        if newproduct is not None:
-            self.screen_manager.current.on_scan(newproduct)
-        else:
-            self.screen_manager.current.on_bad_scan(barcode)
+        self.add_product_to_basket(barcode)
 
     def charge_all(self):
         """ Charge the current user for the current set of products """ 
@@ -274,18 +269,23 @@ class Snackspace: #pylint: disable=R0902
             product.increment() # Product already exists once, so just increment its count
         else:
             #Otherwise need to get product info from the database
-            productdata = self.dbaccess.get_product(barcode)
+            self.dbaccess.get_product(barcode, self.on_db_got_product_data)
 
-            product = None
+    def on_db_got_product_data(self, barcode, productdata):
+     
+        product = None
 
-            if productdata:
-                product = Product(*productdata) #pylint: disable=W0142
+        if productdata:
+            product = Product(*productdata) #pylint: disable=W0142
 
-                if product is not None and product.valid:
-                    self.products.append(product)                 
+            if product is not None and product.valid:
+                self.products.append(product)                 
 
-        return product
-    
+        if product is not None:
+            self.screen_manager.current.on_scan(product)
+        else:
+            self.screen_manager.current.on_bad_scan(barcode)
+            
 def main(_argv=None):
     """ Entry point for snackspace client application """
     argparser = argparse.ArgumentParser(description='Snackspace Server')
