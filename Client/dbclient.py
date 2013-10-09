@@ -9,9 +9,12 @@ import logging
 
 import signal
 
-from messaging import Message, Packet
+from messaging import Message, Packet, PacketTypes, InputException
 
 from xml.dom.minidom import parseString
+
+import threading
+import Queue
 
 class BadReplyException(Exception):
     """ Exception raised when a message to the server does not receive the expected reply """
@@ -21,13 +24,29 @@ class TimeoutException(Exception):
     """ Exception raised when socket fails to receive response """
     pass
 
-class DbClient:
+class MessagingQueueItem: #pylint: disable=R0903
+    
+    """ An item to be placed on the send queue for the database """
+    
+    def __init__(self, msg_type, message, callback):
+        """ Init the message queue item """
+        self.type = msg_type
+        self.message = message
+        self.callback = callback
+    
+class DbClient(threading.Thread):
 
     """ Implementation of DbClient class """
     def __init__(self, local, task_handler, callback):
 
-        """ Add a new product to the database """
+        """ Initialise the database client thread """
+        
+        threading.Thread.__init__(self)
+        
         self.local = local
+        self.callbacks = []
+        self.send_queue = Queue.Queue()
+        
         self.sock = None
         
         self.found_server = False
@@ -48,24 +67,56 @@ class DbClient:
         self.task_handler = task_handler
         self.test_connection_task = self.task_handler.add_function(self.test_connection, 2000, True)
         
+    def run(self):
+        
         self.reset_and_begin_search()
         
+        while (True):
+            
+            try:
+                item = self.send_queue.get(False)
+                self.process_item(item)
+                
+            except Queue.Empty:
+                pass
+    
+    def process_item(self, item):
+    
+        reply, recvd = self.send(item.message)
+            
+        if recvd > 0:
+            try:
+                packets = Message.parse_xml(reply)
+            
+                for packet in packets:
+                   
+                    if item.type in (PacketTypes.UserData, PacketTypes.UnknownUser):
+                        process_user_data(item, packet)
+                    elif packet.type == PacketTypes.PingReply:
+                        self.got_ping_reply(packet, recvd)
+                    elif packet.type in (PacketTypes.ProductData, PacketTypes.UnknownProduct):
+                        process_product_data(item, packet)
+                    elif packet.type == PacketTypes.Result:
+                        if packet.data['action'] == PacketTypes.Transaction:
+                            process_transaction_result(item, packet)
+                        if packet.data['action'] == PacketTypes.AddProduct:
+                            process_add_product_result(item, packet)
+            except InputException:
+                pass ## Let the ping task deal with finding the server has gone
+        else:
+            if (item.type == PacketTypes.Ping):
+                self.got_ping_reply(None, 0)
+                                    
     def test_connection(self):
         """ Periodic task to ping the server and check it's still there """
         if self.found_server == False:
             # The server hasn't been found yet, so keep testing
             self.server_address = (self.server_host, self.test_port)
             self.ping_server()
-            
-            if not self.found_server:
-                self.test_port = (self.test_port + 1) if (self.test_port < 10010) else 10000
-            else:
-                self.test_connection_task.set_period(10000)
         else:
             # There should still be a server there, so ping it
             self.ping_server()
-            if not self.found_server:
-                self.reset_and_begin_search()
+
                     
     def reset_and_begin_search(self):
         """ Resets local server information and begins searching for it again """
@@ -76,49 +127,18 @@ class DbClient:
 
     def get_product(self, barcode, callback):
         """ Get the product data associated with the barcode """
-        packet = Packet("getproduct", {"barcode":barcode})
+        packet = Packet(PacketTypes.GetProduct, {"barcode":barcode})
         message = Message(packet).get_xml()
-
-        data = None
-        
-        reply, _recvd = self.send(message)
-        reply = Message.parse_xml(reply)
-        reply = reply[0]
-
-        if reply.type == "productdata":
-            desc = reply.data['description']
-            priceinpence = reply.data['priceinpence']
-            data = (barcode, desc, priceinpence)
-        elif reply.type == 'unknownproduct':
-            data = None
-        else:
-            raise BadReplyException
-
-        callback(barcode, data)
+    
+        self.send_queue.put( MessagingQueueItem(PacketTypes.GetProduct, message, callback))
         
     def get_user_data(self, rfid, callback):
         """ Get the user data associated with the rfid """
-        packet = Packet("getuser", {"rfid":rfid})
+        packet = Packet(PacketTypes.GetUser, {"rfid":rfid})
         message = Message(packet).get_xml()
 
-        reply, _recvd = self.send(message)
-        reply = Message.parse_xml(reply)
-        reply = reply[0]
+        self.send_queue.put( MessagingQueueItem(PacketTypes.GetUser, message, callback) )
 
-        data = None
-        
-        if reply.type == "userdata":
-            rfid = reply.data['rfid']
-            username = reply.data['username']
-            balance = reply.data['balance']
-            limit = reply.data['limit']
-            member_id = reply.data['memberid']
-            self.logger.info("Got user %s" % username)
-            data = (member_id, username, balance, limit)
-        else:
-            self.logger.info("Unrecognised rfid %s" % rfid)
-
-        callback(rfid, data)
         
     def send_transactions(self, productdata, member_id, callback):
         """ Send transaction requests to the server """
@@ -127,31 +147,21 @@ class DbClient:
         message = Message()
 
         for (barcode, count) in productdata:
-            packet = Packet("transaction", {"barcode":barcode, "memberid":member_id, "count":count})
+            packet = Packet(PacketTypes.Transaction, {"barcode":barcode, "memberid":member_id, "count":count})
             message.add_packet(packet)
 
-        reply, _recvd = self.send(message.get_xml())
-        reply = Message.parse_xml(reply)
-        
-        packet = reply[0]
-        
-        callback( packet.data['memberid'], transaction_total(reply), transactions_successful(reply) )
+        self.send_queue.put( MessagingQueueItem(PacketTypes.Transaction, message.get_xml(), callback) )
 
     def add_product(self, barcode, description, price_in_pence, callback):
         """ Add a new product to the database """
-        packet = Packet("addproduct", {"barcode":barcode, "description":description, "price_in_pence":price_in_pence})
+        packet = Packet(PacketTypes.AddProduct, {"barcode":barcode, "description":description, "price_in_pence":price_in_pence})
         message = Message(packet).get_xml()
 
-        reply, _recvd = self.send(message)
-        reply = Message.parse_xml(reply)
-        
-        packet = reply[0]
-        
-        callback(packet.data['barcode'], packet.data['description'], add_product_successful(reply))
+        self.send_queue.put( MessagingQueueItem(PacketTypes.AddProduct, message, callback))
         
     def add_credit(self, member_id, amountinpence, callback):
         """ Add credit to a user account """
-        packet = Packet("addcredit", {"memberid":member_id, "amountinpence":amountinpence})
+        packet = Packet(PacketTypes.AddCredit, {"memberid":member_id, "amountinpence":amountinpence})
         message = Message(packet).get_xml()
 
         reply, _recvd = self.send(message)
@@ -161,7 +171,7 @@ class DbClient:
 
     def get_random_product(self, callback):
         """ Pull the data for a random product - useful for testing """
-        packet = Packet("randomproduct", {})
+        packet = Packet(PacketTypes.RandomProduct, {})
         message = Message(packet).get_xml()
         
         reply, _recvd = self.send(message)
@@ -181,22 +191,19 @@ class DbClient:
         callback(data)
         
     def ping_server(self):
-        """ Ping the server to test it's still there """
-        
-        ## Assume we are connected initially
-        ## to let send method work
-        old_connection_state = self.found_server 
-        self.found_server = True
-        
+        """ Ping the server to test it's still there """    
         self.logger.info("Testing connection on %s port %d" % self.server_address)
         
-        message = Message("ping")
-        reply, received = self.send(message.get_xml())
-
+        message = Message(PacketTypes.Ping).get_xml()
+        
+        self.send_queue.put( MessagingQueueItem(PacketTypes.Ping, message, None ))
+    
+    def got_ping_reply(self, reply, received):
+        
+        old_connection_state = self.found_server
+        
         if received > 0:
-            packets = Message.parse_xml(reply)
-
-            if packets[0].type == 'pingreply':
+            if reply.type == PacketTypes.PingReply:
                 self.logger.info("Connected to remote server")
                 self.found_server = True
             else:
@@ -206,6 +213,18 @@ class DbClient:
             self.logger.info("No reply to ping received!")
             self.found_server = False
         
+        if not old_connection_state:
+            if not self.found_server:
+                #Keep looking for the server
+                self.test_port = (self.test_port + 1) if (self.test_port < 10010) else 10000
+            else:
+                #Found the server, reduce ping rate
+                self.test_connection_task.set_period(10000)
+        else:
+            if not self.found_server:
+                # Lost the current server, so start search again
+                self.reset_and_begin_search()
+                
         self.state_callback(old_connection_state, self.found_server, self.first_update)
         self.first_update = False
         
@@ -214,48 +233,39 @@ class DbClient:
         received = 0
         data = ''
 
-        if self.found_server:
-            self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-            self.test_connection_task.active = False
-            
-            signal.signal(signal.SIGALRM, self.timeout_handler)
-            signal.alarm(10)
+        self.test_connection_task.active = False
+        
+        try:
+            self.sock.connect(self.server_address)
 
+            self.logger.info("Sending %s" % message)
+
+            length = len(message)
+            message = "%5s%s" % (length, message)
+
+            self.sock.settimeout(5)
+            self.sock.sendall(message)
             try:
-                self.sock.connect(self.server_address)
+                length = int(self.sock.recv(5))
+                data = self.sock.recv(length)
+            except ValueError:
+                pass
+            
+            received = len(data)
 
-                self.logger.info("Sending %s" % message)
+        except socket.timeout:
+            received = 0
+            data = ''
+        except socket.error as err:
+            self.logger.info("Socket open failed with '%s'" % err.strerror)
+            received = 0
+            data = ''
 
-                length = len(message)
-                message = "%5s%s" % (length, message)
-
-                self.sock.sendall(message)
-                try:
-                    length = int(self.sock.recv(5))
-                    data = self.sock.recv(length)
-                except ValueError:
-                    ## Nothing received or socket not initialised correctly
-                    ## Wait until the timeout handler fires
-                    while(1):
-                        pass
-
-                signal.alarm(0)
-                received = len(data)
-
-            except TimeoutException:
-                received = 0
-                data = ''
-
-            except socket.error as err:
-                self.logger.info("Socket open failed with '%s'" % err.strerror)
-                signal.alarm(0)
-                received = 0
-                data = ''
-
-            finally:
-                self.sock.close()
-                self.test_connection_task.active = True
+        finally:
+            self.sock.close()
+            self.test_connection_task.active = True
 
         return data, received
 
@@ -273,18 +283,55 @@ def parse_reply(message):
     for packet in packets:
         packettype = packet.attributes.getNamedItem("type").value
 
-        if packettype == "ping":
-            return Message("pingreply")
+        if packettype == PacketTypes.Ping:
+            return Message(PacketTypes.PingReply)
+        
+def process_user_data(item, packet):
+    
+    """ Send user data from the DB back to application """
+    
+    if packet.type == PacketTypes.UserData:
+        rfid = packet.data['rfid']
+        username = packet.data['username']
+        balance = packet.data['balance']
+        limit = packet.data['limit']
+        member_id = packet.data['memberid']
+        data = (member_id, username, balance, limit)
+    elif packet.type == PacketTypes.UnknownUser:
+        data = None
+    
+    item.callback(rfid, data)
+    
+def process_product_data(item, packet):
 
+    """ Send product data from the DB back to application """
+    if packet.type == PacketTypes.ProductData:
+        desc = packet.data['description']
+        priceinpence = packet.data['priceinpence']
+        barcode = packet.data['barcode']
+        data = (barcode, desc, priceinpence)
+    elif packet.type == PacketTypes.UnknownProduct:
+        data = None
+
+    item.callback(barcode, data) ## Barcode sent seperately as data may not exist
+    
+def process_transaction_result(item, packet):        
+    """ Send transaction result from the DB back to application """
+    item.callback( packet.data['memberid'], transaction_total(packet), transactions_successful(packet) )
+    
+def process_add_product_result(item, packet):
+    """ Send add product result from the DB back to application """             
+    item.callback( packet.data['barcode'], packet.data['description'], add_product_successful(packet) )
+    
 def transaction_total(reply):
     """ Parses reply for the sum of all transactions """
-    sum = 0
+    transaction_sum = 0
 
     for packet in reply:
         if packet.type == "result" and packet.data['action'] == "transaction":
-            sum = sum + int(packet.data['total'])
+            transaction_sum = transaction_sum + int(packet.data['total'])
 
-    return sum
+    return transaction_sum
     
 def transactions_successful(reply):
     """ Parses reply for a successful set of transactions """

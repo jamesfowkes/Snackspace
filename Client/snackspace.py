@@ -164,7 +164,9 @@ class Snackspace: #pylint: disable=R0902
         self.products = []
 
         self.dbaccess = DbClient(self.options.localdb, self.task_handler, self.db_state_callback)
-
+        self.dbaccess.daemon = True
+        self.dbaccess.start()
+        
     def start(self):
         """ The main snackspace event loop """
         ticks = 0

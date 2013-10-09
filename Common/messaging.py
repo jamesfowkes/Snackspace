@@ -26,6 +26,26 @@ DOM objects.
 from xml.dom.minidom import parseString
 from xml.dom.minidom import getDOMImplementation
 
+from const import Const
+
+## Constants defining packet types
+
+PacketTypes = Const()
+PacketTypes.Ping = "ping"
+PacketTypes.PingReply = "pingreply"
+PacketTypes.RandomProduct = "randomproduct"
+PacketTypes.AddCredit = "addcredit"
+PacketTypes.AddProduct = "addproduct"
+PacketTypes.Transaction = "transaction"
+PacketTypes.GetUser = "getuser"
+PacketTypes.GetProduct = "getproduct"
+PacketTypes.ProductData = "productdata"
+PacketTypes.UserData = "userdata"
+PacketTypes.UnknownProduct = "unknownproduct"
+PacketTypes.UnknownUser = "unknownuser"
+
+PacketTypes.Result = "result"
+
 class InputException(Exception):
     """ To be raised when a packet could not be created due to bad input """
     pass

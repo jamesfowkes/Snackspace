@@ -5,7 +5,7 @@ Server-side message and packet handling layer
 
 """
 
-from messaging import Message, Packet
+from messaging import Message, Packet, PacketTypes
 
 import logging
 
@@ -32,21 +32,21 @@ class DbServer(Database):
 
             self.logger.info("Handling '%s' packet..." % packet.type)
 
-            if packet.type == "ping":
-                reply.add_packet( Packet("pingreply") )
-            elif packet.type == "getproduct":
+            if packet.type == PacketTypes.Ping:
+                reply.add_packet( Packet(PacketTypes.PingReply) )
+            elif packet.type == PacketTypes.GetProduct:
                 reply.add_packet( self.get_product_from_data(packet.data) )
-            elif packet.type == "getuser":
+            elif packet.type == PacketTypes.GetUser:
                 reply.add_packet( self.get_user_from_data(packet.data) )
-            elif packet.type == "transaction":
+            elif packet.type == PacketTypes.Transaction:
                 reply.add_packet( self.apply_transaction_from_data(packet.data) )
-            elif packet.type == "addproduct":
+            elif packet.type == PacketTypes.AddProduct:
                 reply.add_packet ( self.add_product_from_data(packet.data) )
-            elif packet.type == "addcredit":
+            elif packet.type == PacketTypes.AddCredit:
                 reply.add_packet( self.add_credit_from_data(packet.data) )
-            elif packet.type == "randomproduct":
+            elif packet.type == PacketTypes.RandomProduct:
                 reply.add_packet( self.get_random_product_packet() )
-            elif packet.type == "pingreply":
+            elif packet.type == PacketTypes.PingReply:
                 pass # No action required for ping reply
             else:
                 self.logger.warning("Unknown packet '%s'" % packet.type)
@@ -57,7 +57,7 @@ class DbServer(Database):
         """ Get a random product and make packet """
         result = self.get_random_product()
         
-        datatype = 'productdata'
+        datatype = PacketTypes.ProductData
         data =  {'barcode': '0', 'description': '', 'priceinpence':'0'} 
         data['barcode'] = result['barcode']
         data['description'] = result['shortdesc']
@@ -93,7 +93,7 @@ class DbServer(Database):
 
         result = self.add_product(_barcode, _desc, _priceinpence)
 
-        packet = Packet("result", {"action":"addproduct", "barcode":_barcode, "description": _desc, "result": "Success" if result else "Fail"})
+        packet = Packet(PacketTypes.Result, {"action":PacketTypes.AddProduct, "barcode":_barcode, "description": _desc, "result": "Success" if result else "Fail"})
 
         return packet
 
@@ -106,7 +106,7 @@ class DbServer(Database):
 
         result = self.add_credit(memberid, amountinpence)
 
-        packet = Packet("result", {"action":"addcredit", "credit": amountinpence, "result": "Success" if result else "Fail", "memberid":memberid})
+        packet = Packet(PacketTypes.Result, {"action":PacketTypes.AddCredit, "credit": amountinpence, "result": "Success" if result else "Fail", "memberid":memberid})
 
         return packet
 
@@ -118,7 +118,7 @@ class DbServer(Database):
 
         result, total = self.transaction(memberid, barcode, count)
 
-        packet = Packet("result", {"action":"transaction", "barcode":barcode, "total":total, "result": "Success" if result else "Fail", "memberid":memberid})
+        packet = Packet(PacketTypes.Result, {"action":PacketTypes.Transaction, "barcode":barcode, "total":total, "result": "Success" if result else "Fail", "memberid":memberid})
 
         return packet
 
@@ -127,13 +127,13 @@ class DbServer(Database):
         result = self.get_product(barcode)
 
         if result is not None:
-            datatype = 'productdata'
+            datatype = PacketTypes.ProductData
             data =  {'barcode': '0', 'description': '', 'priceinpence':'0'} 
             data['barcode'] = result['barcode']
             data['description'] = result['shortdesc']
             data['priceinpence'] = result['price']
         else:
-            datatype = 'unknownproduct'
+            datatype = PacketTypes.UnknownProduct
             data =  {'barcode': '0'} 
             data['barcode'] = barcode
             
@@ -144,8 +144,8 @@ class DbServer(Database):
 
     def user_from_rfid(self, rfid):
         """ Build a user packet from the database """
-        datatype = 'userdata'
-        data =  {'memberid': '0', 'username': '', 'balance':'0', 'limit':'0'}
+        datatype = PacketTypes.UserData
+        data =  {'memberid': '0', 'username': '', 'balance':'0', 'limit':'0', 'rfid':''}
 
         result = self.get_user(rfid)
 
@@ -155,6 +155,8 @@ class DbServer(Database):
             data['username'] = result['username']
             data['balance'] = result['balance']
             data['limit'] = result['limit']
+        else:
+            datatype = PacketTypes.UnknownUser
 
         packet = Packet(datatype, data)
 
