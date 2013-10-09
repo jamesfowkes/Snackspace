@@ -28,11 +28,11 @@ class MessagingQueueItem: #pylint: disable=R0903
     
     """ An item to be placed on the send queue for the database """
     
-    def __init__(self, msg_type, message, callback):
+    def __init__(self, msg_type, message, queue):
         """ Init the message queue item """
         self.type = msg_type
         self.message = message
-        self.callback = callback
+        self.queue = queue
     
 class DbClient(threading.Thread):
 
@@ -90,17 +90,20 @@ class DbClient(threading.Thread):
             
                 for packet in packets:
                    
-                    if item.type in (PacketTypes.UserData, PacketTypes.UnknownUser):
-                        process_user_data(item, packet)
+                    if packet.type in (PacketTypes.UserData, PacketTypes.UnknownUser):
+                        item.queue.put(packet)
                     elif packet.type == PacketTypes.PingReply:
                         self.got_ping_reply(packet, recvd)
                     elif packet.type in (PacketTypes.ProductData, PacketTypes.UnknownProduct):
-                        process_product_data(item, packet)
+                        item.queue.put(packet)
                     elif packet.type == PacketTypes.Result:
                         if packet.data['action'] == PacketTypes.Transaction:
-                            process_transaction_result(item, packet)
+                            item.queue.put(packet)
                         if packet.data['action'] == PacketTypes.AddProduct:
-                            process_add_product_result(item, packet)
+                            item.queue.put(packet)
+                        if packet.data['action'] == PacketTypes.AddCredit:
+                            item.queue.put(packet)
+
             except InputException:
                 pass ## Let the ping task deal with finding the server has gone
         else:
@@ -125,22 +128,22 @@ class DbClient(threading.Thread):
         self.test_connection_task.set_period(2000)
         self.test_connection_task.trigger_now()
 
-    def get_product(self, barcode, callback):
+    def get_product(self, barcode, queue):
         """ Get the product data associated with the barcode """
         packet = Packet(PacketTypes.GetProduct, {"barcode":barcode})
         message = Message(packet).get_xml()
     
-        self.send_queue.put( MessagingQueueItem(PacketTypes.GetProduct, message, callback))
+        self.send_queue.put( MessagingQueueItem(PacketTypes.GetProduct, message, queue))
         
-    def get_user_data(self, rfid, callback):
+    def get_user_data(self, rfid, queue):
         """ Get the user data associated with the rfid """
         packet = Packet(PacketTypes.GetUser, {"rfid":rfid})
         message = Message(packet).get_xml()
 
-        self.send_queue.put( MessagingQueueItem(PacketTypes.GetUser, message, callback) )
+        self.send_queue.put( MessagingQueueItem(PacketTypes.GetUser, message, queue) )
 
         
-    def send_transactions(self, productdata, member_id, callback):
+    def send_transactions(self, productdata, member_id, queue):
         """ Send transaction requests to the server """
         self.logger.info("Sending transactions")
 
@@ -150,25 +153,22 @@ class DbClient(threading.Thread):
             packet = Packet(PacketTypes.Transaction, {"barcode":barcode, "memberid":member_id, "count":count})
             message.add_packet(packet)
 
-        self.send_queue.put( MessagingQueueItem(PacketTypes.Transaction, message.get_xml(), callback) )
+        self.send_queue.put( MessagingQueueItem(PacketTypes.Transaction, message.get_xml(), queue) )
 
-    def add_product(self, barcode, description, price_in_pence, callback):
+    def add_product(self, barcode, description, price_in_pence, queue):
         """ Add a new product to the database """
         packet = Packet(PacketTypes.AddProduct, {"barcode":barcode, "description":description, "price_in_pence":price_in_pence})
         message = Message(packet).get_xml()
 
-        self.send_queue.put( MessagingQueueItem(PacketTypes.AddProduct, message, callback))
+        self.send_queue.put( MessagingQueueItem(PacketTypes.AddProduct, message, queue))
         
-    def add_credit(self, member_id, amountinpence, callback):
+    def add_credit(self, member_id, amountinpence, queue):
         """ Add credit to a user account """
         packet = Packet(PacketTypes.AddCredit, {"memberid":member_id, "amountinpence":amountinpence})
         message = Message(packet).get_xml()
 
-        reply, _recvd = self.send(message)
-        reply = Message.parse_xml(reply)
+        self.send_queue.put( MessagingQueueItem(PacketTypes.AddCredit, message, queue))
         
-        callback(reply[0].data['memberid'], int(reply[0].data['credit']), add_credit_successful(reply))
-
     def get_random_product(self, callback):
         """ Pull the data for a random product - useful for testing """
         packet = Packet(PacketTypes.RandomProduct, {})
@@ -285,78 +285,18 @@ def parse_reply(message):
 
         if packettype == PacketTypes.Ping:
             return Message(PacketTypes.PingReply)
-        
-def process_user_data(item, packet):
-    
-    """ Send user data from the DB back to application """
-    
-    if packet.type == PacketTypes.UserData:
-        rfid = packet.data['rfid']
-        username = packet.data['username']
-        balance = packet.data['balance']
-        limit = packet.data['limit']
-        member_id = packet.data['memberid']
-        data = (member_id, username, balance, limit)
-    elif packet.type == PacketTypes.UnknownUser:
-        data = None
-    
-    item.callback(rfid, data)
-    
-def process_product_data(item, packet):
-
-    """ Send product data from the DB back to application """
-    if packet.type == PacketTypes.ProductData:
-        desc = packet.data['description']
-        priceinpence = packet.data['priceinpence']
-        barcode = packet.data['barcode']
-        data = (barcode, desc, priceinpence)
-    elif packet.type == PacketTypes.UnknownProduct:
-        data = None
-
-    item.callback(barcode, data) ## Barcode sent seperately as data may not exist
-    
+           
 def process_transaction_result(item, packet):        
     """ Send transaction result from the DB back to application """
+    
     item.callback( packet.data['memberid'], transaction_total(packet), transactions_successful(packet) )
     
 def process_add_product_result(item, packet):
     """ Send add product result from the DB back to application """             
     item.callback( packet.data['barcode'], packet.data['description'], add_product_successful(packet) )
-    
-def transaction_total(reply):
-    """ Parses reply for the sum of all transactions """
-    transaction_sum = 0
 
-    for packet in reply:
-        if packet.type == "result" and packet.data['action'] == "transaction":
-            transaction_sum = transaction_sum + int(packet.data['total'])
+def process_add_credit_result(item, packet):
+    """ Send add credit result from the DB back to application """
+    item.callback( packet.data['memberid'], int(packet.data['credit']), add_credit_successful(packet))
+  
 
-    return transaction_sum
-    
-def transactions_successful(reply):
-    """ Parses reply for a successful set of transactions """
-    success = True
-
-    for packet in reply:
-        if packet.type == "result" and packet.data['action'] == "transaction":
-            success = success and (packet.data['result'] == "Success")
-
-    return success
-
-def add_credit_successful(reply):
-    """ Parses reply for a successful addition of credit to user account """
-    success = False
-    reply = reply[0]
-
-    if reply.type == "result" and reply.data['action'] == "addcredit":
-        success = (reply.data['result'] == "Success")
-    return success
-
-def add_product_successful(reply):
-    """ Parses reply for a successful addition of product to database """
-    success = False
-    reply = reply[0]
-
-    if reply.type == "result" and reply.data['action'] == "addproduct":
-        success = (reply.data['result'] == "Success")
-    return success

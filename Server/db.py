@@ -9,13 +9,12 @@ import sqlsoup #@UnresolvedImport
 import sqlalchemy
 import urllib
 import re
-from axiom.errors import SQLError
 from sqlsoup import Session
 
 import random
 
-TEST_DB_PATH = "data/test.dbase"
-TEST_DATA_PATH = "data/test_data.sql"
+TEST_DB_PATH = "Server/data/test.dbase"
+TEST_DATA_PATH = "Server/data/test_data.sql"
 
 REAL_DB_PATH = "snackspace:%s@rommie/instrumentation"
 

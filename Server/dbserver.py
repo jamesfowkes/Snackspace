@@ -145,7 +145,7 @@ class DbServer(Database):
     def user_from_rfid(self, rfid):
         """ Build a user packet from the database """
         datatype = PacketTypes.UserData
-        data =  {'memberid': '0', 'username': '', 'balance':'0', 'limit':'0', 'rfid':''}
+        data =  {'memberid': '0', 'username': '', 'balance':'0', 'limit':'0', 'rfid':rfid}
 
         result = self.get_user(rfid)
 

@@ -9,15 +9,18 @@ Communicates with server-side snackspace application via XML packets over TCP so
 """
 
 import sys
-import pygame #@UnresolvedImport
+import os
+import pygame  # @UnresolvedImport
 
-import argparse #@UnresolvedImport
+import argparse  # @UnresolvedImport
 
 import ConfigParser
 
 import logging
 
 import time
+
+import Queue
 
 from rfid import RFIDReader
 
@@ -34,7 +37,9 @@ from task import TaskHandler
 
 from collections import namedtuple
 
-SnackspaceOptions = namedtuple("SnackspaceOptions", "localdb rfid_port limit_action credit_action") #pylint: disable=C0103
+from messaging import PacketTypes
+
+SnackspaceOptions = namedtuple("SnackspaceOptions", "localdb rfid_port limit_action credit_action")  # pylint: disable=C0103
 
 class ChargeAllHandler:
     
@@ -43,49 +48,66 @@ class ChargeAllHandler:
     transactions tables is updated
     2. The user is credited with any extra monies added
     
-    As these are handled as two seperate DB transactions, a distint class
+    As these are handled as two seperate DB transactions, a distinct class
     makes handling easier
     """
     
-    def __init__(self, db, user, products, callback):
+    def __init__(self, db, user, products, callback, queue):
         
         self.callback = callback
         self.transaction_total = 0
         self.user = user
         self.dbaccess = db
+        self.reply_queue = queue
+        self.transaction_count = len(products)
+        self.transaction_replies = 0
         
         if user is not None:
-            products = [(product.barcode, product.count) for product in products]
-            self.dbaccess.send_transactions(products, self.user.member_id, self.on_db_send_transactions_callback)
+            if self.transaction_count:
+                products = [(product.barcode, product.count) for product in products]
+                self.dbaccess.send_transactions(products, self.user.member_id, self.reply_queue)
+            elif (self.user.credit > 0):
+                ## No transactions, but need to credit the user's account
+                self.dbaccess.add_credit(self.user.member_id, self.user.credit, self.reply_queue)
+            else:
+                callback(0, 0, False)
         else:
             callback(0, 0, False)
         
 
-    def on_db_send_transactions_callback(self, member_id, transaction_total, success):
+    def on_db_send_transactions_callback(self, packet):
+    
+        member_id = packet.data['memberid']
+        success = (packet.data['result'] == "Success") and (member_id == self.user.member_id)
         
-        self.transaction_total = transaction_total
-        
-        success = success and (member_id == self.user.member_id)
+        self.transaction_replies = self.transaction_replies + 1
         
         if success:
-            if (self.user.credit > 0):
-                self.dbaccess.add_credit(self.user.member_id, self.user.credit, self.on_db_add_credit_callback)
-            else:
-                self.callback( transaction_total,0, success)
+
+            self.transaction_total = self.transaction_total + int(packet.data['total'])
+            
+            if (self.transaction_count == self.transaction_replies):
+                ## All transactions processed
+                if (self.user.credit > 0):
+                    ## Also need to credit the user's account
+                    self.dbaccess.add_credit(self.user.member_id, self.user.credit, self.reply_queue)
+                else:
+                    self.callback(self.transaction_total, 0, success)
         else:
-            self.callback( 0, 0, success)
+            self.callback(0, 0, False) #Something went wrong
             
     
-    def on_db_add_credit_callback(self, member_id, credit, success):
+    def on_db_add_credit_callback(self, packet):
         
-        success = success and (member_id == self.user.member_id)
-        
+        member_id = packet.data['memberid']
+        success = (packet.data['result'] == "Success") and (member_id == self.user.member_id)
+               
         if success:
-            self.callback(self.transaction_total, credit, success)
+            self.callback(self.transaction_total, int(packet.data['credit']), success)
         else:
             self.callback(self.transaction_total, 0, success)
 
-class InputHandler: #pylint: disable=R0903
+class InputHandler:  # pylint: disable=R0903
     """ Implements functionality for managing keyboard input """
     
     NEW_SCANNED_INPUT = 0
@@ -99,7 +121,7 @@ class InputHandler: #pylint: disable=R0903
         """ Initialise the class """
         self.scanned_input = ''
         
-        ## Only numeric keys are valid
+        # # Only numeric keys are valid
         self.valid_scan_keys = [
                 pygame.K_0, pygame.K_1, pygame.K_2, pygame.K_3, pygame.K_4,
                 pygame.K_5, pygame.K_6, pygame.K_7, pygame.K_8, pygame.K_9
@@ -111,7 +133,7 @@ class InputHandler: #pylint: disable=R0903
         result = None
            
         if (event.key in self.valid_scan_keys):
-            #Add new keypress to buffer
+            # Add new keypress to buffer
             self.scanned_input += key
     
         elif (event.key == pygame.K_RETURN):
@@ -134,7 +156,7 @@ class InputHandler: #pylint: disable=R0903
             
         return result
 
-class Snackspace: #pylint: disable=R0902
+class Snackspace:  # pylint: disable=R0902
     """ Implements the main snackspace class. Responsible for:
     DB and screen managers
     RFID and barcode scanners
@@ -163,6 +185,8 @@ class Snackspace: #pylint: disable=R0902
         self.user = None
         self.products = []
 
+        self.reply_queue = Queue.Queue()
+        
         self.dbaccess = DbClient(self.options.localdb, self.task_handler, self.db_state_callback)
         self.dbaccess.daemon = True
         self.dbaccess.start()
@@ -182,12 +206,35 @@ class Snackspace: #pylint: disable=R0902
                 if event.type == pygame.KEYDOWN:
                     self.keypress(event)
 
+            try:
+                packet = self.reply_queue.get(False)
+                self.handle_new_packet(packet)
+                
+            except Queue.Empty:
+                pass
+                
             if (pygame.time.get_ticks() - ticks) > 0:
 
                 ticks = pygame.time.get_ticks()
 
                 self.task_handler.tick()
+    
+    def handle_new_packet(self, packet):
+        if packet.type == PacketTypes.ProductData:
+            self.on_db_got_product_data(packet)
+        elif packet.type == PacketTypes.UnknownProduct:
+            self.on_db_got_unknown_product(packet)
+        elif packet.type == PacketTypes.UserData:
+            self.on_db_got_user_data(packet)
+        elif packet.type == PacketTypes.Result:
+            if packet.data['action'] == PacketTypes.Transaction:
+                self.charge_all_handler.on_db_send_transactions_callback(packet)
+            elif packet.data['action'] == PacketTypes.AddCredit:
+                self.charge_all_handler.on_db_add_credit_callback(packet)
+            elif packet.data['action'] == PacketTypes.AddProduct:
+                self.on_db_add_product_callback(packet)
 
+                
     def keypress(self, event):
         """ Handle a keyboard press or barcode scan character """ 
         # Push keypress to the current screen
@@ -197,26 +244,26 @@ class Snackspace: #pylint: disable=R0902
         result = self.input_handler.new_event(event)
         
         if result == InputHandler.FAKE_BAD_PRODUCT:
-            ## Fake a bad product scan
+            # # Fake a bad product scan
             self.on_scan_event('BADBARCODE')
             
         elif result == InputHandler.FAKE_GOOD_PRODUCT:
-            ## Fake a good product scan
+            # # Fake a good product scan
             self.dbaccess.get_random_product(self.on_db_random_product_callback)
             
         elif result == InputHandler.FAKE_RFID:
-            ## Fake an RFID swipe
+            # # Fake an RFID swipe
             self.rfid.set_fake_rfid()
                 
         elif result == InputHandler.NEW_SCANNED_INPUT:
-            ## Buffer is complete, process it
+            # # Buffer is complete, process it
             scanned_input = self.input_handler.scanned_input
             self.input_handler.scanned_input = ''
             self.logger.debug("Got raw input '%s'" % scanned_input)
             self.on_scan_event(scanned_input)
         
         elif result == InputHandler.PRODUCT_ENTRY:
-            ## Go to product entry screen
+            # # Go to product entry screen
             self.screen_manager.req(Screens.PRODUCTENTRY)
         
         elif result == InputHandler.QUIT:
@@ -227,7 +274,7 @@ class Snackspace: #pylint: disable=R0902
         rfid = self.rfid.poll()
         
         if rfid is not None:
-            self.on_swipe_event( self.rfid.mangle_rfid(rfid) )
+            self.on_swipe_event(self.rfid.mangle_rfid(rfid))
 
     def db_state_callback(self, old_state, new_state, first_update):
         """ Callback when database state changes """
@@ -248,21 +295,7 @@ class Snackspace: #pylint: disable=R0902
         if not self.dbaccess.found_server:
             return
         else:
-            self.dbaccess.get_user_data(cardnumber, self.on_db_got_user_data)
-
-    def on_db_got_user_data(self, cardnumber, userdata):
-
-        """ Callback when user data returned """
-        if userdata is not None:
-            self.user = User(*userdata, options = self.options) #pylint: disable=W0142
-            self.logger.debug("Got user %s" % self.user.name)
-        else:
-            self.logger.debug("Bad RFID %s" % cardnumber)
-
-        if self.user is not None:
-            self.screen_manager.current.on_rfid()
-        else:
-            self.screen_manager.current.OnBadRFID()
+            self.dbaccess.get_user_data(cardnumber, self.reply_queue)
 
     def on_scan_event(self, barcode):
         """ When a barcode scan is made, pulls product from the database """ 
@@ -272,9 +305,8 @@ class Snackspace: #pylint: disable=R0902
         self.add_product_to_basket(barcode)
 
     def charge_all(self, callback):
-        
         """ Charge the current user for the current set of products """
-        ChargeAllHandler(self.dbaccess, self.user, self.products, callback)
+        self.charge_all_handler = ChargeAllHandler(self.dbaccess, self.user, self.products, callback, self.reply_queue)
             
     def credit_user(self, amount):
         """ Adds credit to a user's account """
@@ -311,28 +343,44 @@ class Snackspace: #pylint: disable=R0902
         product = next((product for product in self.products if barcode == product.barcode), None)
 
         if product is not None:
-            product.increment() # Product already exists once, so just increment its count
+            product.increment()  # Product already exists once, so just increment its count
             self.screen_manager.current.on_scan(product)
         else:
-            #Otherwise need to get product info from the database
-            self.dbaccess.get_product(barcode, self.on_db_got_product_data)
+            # Otherwise need to get product info from the database
+            self.dbaccess.get_product(barcode, self.reply_queue)
 
-    def on_db_got_product_data(self, barcode, productdata):
-     
-        """ Callback when product data returned """
+    def on_db_got_user_data(self, packet):
+        """ Callback when user data returned """
         
-        product = None
+        member_id = packet.data['memberid']
+        username = packet.data['username']
+        balance = packet.data['balance']
+        credit_limit = packet.data['limit']
+        
+        self.user = User(member_id, username, balance, credit_limit, self.options)
+        self.logger.debug("Got user %s" % self.user.name)
+        self.screen_manager.current.on_rfid()
+        
+    def on_db_got_unknown_user(self, packet):
+        self.logger.debug("Bad RFID %s" % packet.data['rfid'])
+        self.screen_manager.current.OnBadRFID()
+            
+    def on_db_got_product_data(self, packet):
+        """ Called when product data returned """
+        barcode = packet.data['barcode']
+        description = packet.data['description']
+        priceinpence = packet.data['priceinpence']
+        
+        product = Product(barcode, description, priceinpence)  # pylint: disable=W0142
 
-        if productdata:
-            product = Product(*productdata) #pylint: disable=W0142
-
-            if product is not None and product.valid:
-                self.products.append(product)                 
-
-        if product is not None:
+        if product.valid:
+            self.products.append(product)      
             self.screen_manager.current.on_scan(product)
-        else:
-            self.screen_manager.current.on_bad_scan(barcode)
+           
+    def on_db_got_unknown_product(self, packet):
+        """ Called when user data request failed """
+        barcode = packet.data['barcode']
+        self.screen_manager.current.on_bad_scan(barcode)
             
 def main(_argv=None):
     """ Entry point for snackspace client application """
@@ -345,13 +393,14 @@ def main(_argv=None):
 
     args = argparser.parse_args()
 
-    ## Read arguments from configuration file
+    # # Read arguments from configuration file
     try:
         confparser = ConfigParser.ConfigParser()
-        confparser.readfp(open(args.conffile))
+        print os.getcwd()
+        confparser.readfp(open("Client/" + args.conffile))
 
     except IOError:
-        ## Configuration file does not exist, or no filename supplied
+        # # Configuration file does not exist, or no filename supplied
         confparser = None
 
     pygame.init()
@@ -366,11 +415,11 @@ def main(_argv=None):
         limit_action = args.limit_action
         credit_action = args.credit_action
     else:
-        local_mode = confparser.get('ClientConfig','local_mode') == 'y'
-        limit_action = confparser.get('ClientConfig','limit_action')
-        credit_action = confparser.get('ClientConfig','credit_action')
+        local_mode = confparser.get('ClientConfig', 'local_mode') == 'y'
+        limit_action = confparser.get('ClientConfig', 'limit_action')
+        credit_action = confparser.get('ClientConfig', 'credit_action')
         try:
-            rfid_port = confparser.get('ClientConfig','rfid_port')
+            rfid_port = confparser.get('ClientConfig', 'rfid_port')
         except ConfigParser.NoOptionError:
             rfid_port = None
         
@@ -383,3 +432,29 @@ def main(_argv=None):
 
 if __name__ == "__main__":
     main()
+
+def add_credit_successful(packet):
+    """ Parses reply for a successful addition of credit to user account """
+    success = False
+
+    if packet.type == "result" and packet.data['action'] == "addcredit":
+        success = (packet.data['result'] == "Success")
+    return success
+
+def transaction_total(packets):
+    """ Parses reply for the sum of all transactions """
+    transaction_sum = 0
+
+    for packet in packets:
+        if packet.type == "result" and packet.data['action'] == "transaction":
+            transaction_sum = transaction_sum + int(packet.data['total'])
+
+    return transaction_sum
+
+def add_product_successful(packet):
+    """ Parses reply for a successful addition of product to database """
+    success = False
+
+    if packet.type == "result" and packet.data['action'] == "addproduct":
+        success = (packet.data['result'] == "Success")
+    return success
