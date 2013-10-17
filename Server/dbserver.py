@@ -44,7 +44,7 @@ class DbServer(Database):
                 reply.add_packet ( self.add_product_from_data(packet.data) )
             elif packet.type == PacketTypes.AddCredit:
                 reply.add_packet( self.add_credit_from_data(packet.data) )
-            elif packet.type == PacketTypes.RandomProduct:
+            elif packet.type == PacketTypes.GetRandomProduct:
                 reply.add_packet( self.get_random_product_packet() )
             elif packet.type == PacketTypes.PingReply:
                 pass # No action required for ping reply
@@ -57,7 +57,7 @@ class DbServer(Database):
         """ Get a random product and make packet """
         result = self.get_random_product()
         
-        datatype = PacketTypes.ProductData
+        datatype = PacketTypes.RandomProduct
         data =  {'barcode': '0', 'description': '', 'priceinpence':'0'} 
         data['barcode'] = result['barcode']
         data['description'] = result['shortdesc']

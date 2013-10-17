@@ -33,7 +33,7 @@ from const import Const
 PacketTypes = Const()
 PacketTypes.Ping = "ping"
 PacketTypes.PingReply = "pingreply"
-PacketTypes.RandomProduct = "randomproduct"
+PacketTypes.GetRandomProduct = "randomproduct"
 PacketTypes.AddCredit = "addcredit"
 PacketTypes.AddProduct = "addproduct"
 PacketTypes.Transaction = "transaction"
@@ -43,7 +43,7 @@ PacketTypes.ProductData = "productdata"
 PacketTypes.UserData = "userdata"
 PacketTypes.UnknownProduct = "unknownproduct"
 PacketTypes.UnknownUser = "unknownuser"
-
+PacketTypes.RandomProduct = "randomproduct"
 PacketTypes.Result = "result"
 
 class InputException(Exception):

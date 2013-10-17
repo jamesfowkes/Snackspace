@@ -97,6 +97,8 @@ class DbClient(threading.Thread):
                         self.got_ping_reply(packet, recvd)
                     elif packet.type in (PacketTypes.ProductData, PacketTypes.UnknownProduct):
                         item.queue.put(packet)
+                    elif packet.type in (PacketTypes.RandomProduct):
+                        item.queue.put(packet)
                     elif packet.type == PacketTypes.Result:
                         if packet.data['action'] == PacketTypes.Transaction:
                             item.queue.put(packet)
@@ -170,26 +172,12 @@ class DbClient(threading.Thread):
 
         self.send_queue.put( MessagingQueueItem(PacketTypes.AddCredit, message, queue))
         
-    def get_random_product(self, callback):
+    def get_random_product(self, queue):
         """ Pull the data for a random product - useful for testing """
         packet = Packet(PacketTypes.RandomProduct, {})
         message = Message(packet).get_xml()
         
-        reply, _recvd = self.send(message)
-        reply = Message.parse_xml(reply)
-        reply = reply[0]
-        
-        data = None
-        
-        if reply.type == "productdata":
-            barcode = reply.data['barcode']
-            desc = reply.data['description']
-            priceinpence = reply.data['priceinpence']
-            data = (barcode, desc, priceinpence)
-        else:
-            raise BadReplyException
-    
-        callback(data)
+        self.send_queue.put( MessagingQueueItem(PacketTypes.GetRandomProduct, message, queue))
         
     def ping_server(self):
         """ Ping the server to test it's still there """    
@@ -229,7 +217,7 @@ class DbClient(threading.Thread):
         self.state_callback(old_connection_state, self.found_server, self.first_update)
         self.first_update = False
         
-    def send(self, message):
+    def send(self, message, force = False):
         """ Sends message on current socket and waits for response """
         received = 0
         data = ''
@@ -238,35 +226,36 @@ class DbClient(threading.Thread):
 
         self.test_connection_task.active = False
         
-        try:
-            self.sock.connect(self.server_address)
-
-            self.logger.info("Sending %s" % message)
-
-            length = len(message)
-            message = "%5s%s" % (length, message)
-
-            self.sock.settimeout(5)
-            self.sock.sendall(message)
+        if self.found_server or force:
             try:
-                length = int(self.sock.recv(5))
-                data = self.sock.recv(length)
-            except ValueError:
-                pass
-            
-            received = len(data)
-
-        except socket.timeout:
-            received = 0
-            data = ''
-        except socket.error as err:
-            self.logger.info("Socket open failed with '%s'" % err.strerror)
-            received = 0
-            data = ''
-
-        finally:
-            self.sock.close()
-            self.test_connection_task.active = True
+                self.sock.connect(self.server_address)
+    
+                self.logger.info("Sending %s" % message)
+    
+                length = len(message)
+                message = "%5s%s" % (length, message)
+    
+                self.sock.settimeout(5)
+                self.sock.sendall(message)
+                try:
+                    length = int(self.sock.recv(5))
+                    data = self.sock.recv(length)
+                except ValueError:
+                    pass
+                
+                received = len(data)
+    
+            except socket.timeout:
+                received = 0
+                data = ''
+            except socket.error as err:
+                self.logger.info("Socket open failed with '%s'" % err.strerror)
+                received = 0
+                data = ''
+    
+            finally:
+                self.sock.close()
+                self.test_connection_task.active = True
 
         return data, received
 

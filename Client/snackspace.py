@@ -115,7 +115,8 @@ class InputHandler:  # pylint: disable=R0903
     FAKE_RFID = 2
     FAKE_GOOD_PRODUCT = 3
     FAKE_BAD_PRODUCT = 4
-    QUIT = 5
+    FULLSCREEN_TOGGLE = 5
+    QUIT = 6
     
     def __init__(self):
         """ Initialise the class """
@@ -150,7 +151,10 @@ class InputHandler:  # pylint: disable=R0903
     
         elif (event.key == pygame.K_f) and (pygame.key.get_mods() & pygame.KMOD_CTRL):
             result = self.FAKE_BAD_PRODUCT
-        
+            
+        elif (event.key == pygame.K_s) and (pygame.key.get_mods() & pygame.KMOD_CTRL):
+            result = self.FULLSCREEN_TOGGLE
+            
         elif (event.key == pygame.K_c) and (pygame.key.get_mods() & pygame.KMOD_CTRL):
             result = self.QUIT
             
@@ -180,6 +184,9 @@ class Snackspace:  # pylint: disable=R0902
 
         self.rfid = RFIDReader(self.options.rfid_port)
         
+        self.is_fullscreen = True
+        
+        self.window_size = size
         self.screen_manager = ScreenManager(self, window, size)
 
         self.user = None
@@ -226,6 +233,30 @@ class Snackspace:  # pylint: disable=R0902
         while self.dbaccess.is_alive():
             pass
         sys.exit()
+    
+    def set_fullscreen(self, fullscreen):
+        
+        screen = pygame.display.get_surface()
+        tmp = screen.convert()
+        caption = pygame.display.get_caption() 
+        
+        flags = screen.get_flags()
+        
+        if fullscreen:
+            flags = flags | pygame.FULLSCREEN
+        else:
+            flags = flags & ~pygame.FULLSCREEN
+            
+        bits = screen.get_bitsize()
+        
+        #pygame.display.quit()
+        #pygame.display.init()
+        
+        screen = pygame.display.set_mode(self.window_size, flags, bits)
+        screen.blit(tmp,(0,0))
+        pygame.display.set_caption(*caption)
+        
+        self.is_fullscreen = fullscreen
         
     def handle_new_packet(self, packet):
         if packet.type == PacketTypes.ProductData:
@@ -234,6 +265,8 @@ class Snackspace:  # pylint: disable=R0902
             self.on_db_got_unknown_product(packet)
         elif packet.type == PacketTypes.UserData:
             self.on_db_got_user_data(packet)
+        elif packet.type == PacketTypes.RandomProduct:
+            self.on_db_random_product_callback(packet)
         elif packet.type == PacketTypes.Result:
             if packet.data['action'] == PacketTypes.Transaction:
                 self.charge_all_handler.on_db_send_transactions_callback(packet)
@@ -257,7 +290,7 @@ class Snackspace:  # pylint: disable=R0902
             
         elif result == InputHandler.FAKE_GOOD_PRODUCT:
             # # Fake a good product scan
-            self.dbaccess.get_random_product(self.on_db_random_product_callback)
+            self.dbaccess.get_random_product(self.reply_queue)
             
         elif result == InputHandler.FAKE_RFID:
             # # Fake an RFID swipe
@@ -274,6 +307,9 @@ class Snackspace:  # pylint: disable=R0902
             # # Go to product entry screen
             self.screen_manager.req(Screens.PRODUCTENTRY)
         
+        elif result == InputHandler.FULLSCREEN_TOGGLE:
+            self.set_fullscreen(not self.is_fullscreen)
+            self.screen_manager.req(self.screen_manager.currentscreen, True)
         elif result == InputHandler.QUIT:
             self.quit()
 
@@ -293,10 +329,6 @@ class Snackspace:  # pylint: disable=R0902
                 self.screen_manager.get(Screens.MAINSCREEN).clear_all()
                 self.forget_products()
                 self.forget_user()
-    
-    def on_db_random_product_callback(self, data):
-        """ Callback when random product data is returned from the database """
-        self.on_scan_event(data[0])
         
     def on_swipe_event(self, cardnumber):
         """ When an RFID swipe is made, gets user from the database """
@@ -356,7 +388,12 @@ class Snackspace:  # pylint: disable=R0902
         else:
             # Otherwise need to get product info from the database
             self.dbaccess.get_product(barcode, self.reply_queue)
-
+            
+    def on_db_random_product_callback(self, packet):
+        """ Callback when random product data is returned from the database """
+        barcode = packet.data['barcode']
+        self.on_scan_event(barcode)
+        
     def on_db_got_user_data(self, packet):
         """ Callback when user data returned """
         
@@ -441,7 +478,7 @@ def main(_argv=None):
     
     size = [800, 600]
 
-    window = pygame.display.set_mode(size)
+    window = pygame.display.set_mode(size, pygame.FULLSCREEN)
 
     if confparser is None:
         host_ip = args.host_ip
