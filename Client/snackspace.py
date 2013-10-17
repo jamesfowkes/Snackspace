@@ -39,7 +39,7 @@ from collections import namedtuple
 
 from messaging import PacketTypes
 
-SnackspaceOptions = namedtuple("SnackspaceOptions", "localdb rfid_port limit_action credit_action")  # pylint: disable=C0103
+SnackspaceOptions = namedtuple("SnackspaceOptions", "hostip rfid_port limit_action credit_action")  # pylint: disable=C0103
 
 class ChargeAllHandler:
     
@@ -187,7 +187,7 @@ class Snackspace:  # pylint: disable=R0902
 
         self.reply_queue = Queue.Queue()
         
-        self.dbaccess = DbClient(self.options.localdb, self.task_handler, self.db_state_callback)
+        self.dbaccess = DbClient(self.options.hostip, self.task_handler, self.db_state_callback)
         self.dbaccess.daemon = True
         self.dbaccess.start()
         
@@ -389,57 +389,6 @@ class Snackspace:  # pylint: disable=R0902
         """ Called when user data request failed """
         barcode = packet.data['barcode']
         self.screen_manager.current.on_bad_scan(barcode)
-            
-def main(_argv=None):
-    """ Entry point for snackspace client application """
-    argparser = argparse.ArgumentParser(description='Snackspace Server')
-    argparser.add_argument('-L', dest='local_mode', nargs='?', default='n', const='y')
-    argparser.add_argument('-P', dest='rfid_port', nargs='?', default=None)
-    argparser.add_argument('--limitaction', dest='limit_action', nargs='?', default='ignore')
-    argparser.add_argument('--creditaction', dest='credit_action', nargs='?', default='disallow')
-    argparser.add_argument('--file', dest='conffile', nargs='?', default='')
-
-    args = argparser.parse_args()
-
-    # # Read arguments from configuration file
-    try:
-        confparser = ConfigParser.ConfigParser()
-        print os.getcwd()
-        confparser.readfp(open("Client/" + args.conffile))
-
-    except IOError:
-        # # Configuration file does not exist, or no filename supplied
-        confparser = None
-
-    pygame.init()
-    
-    size = [800, 600]
-
-    window = pygame.display.set_mode(size)
-
-    if confparser is None:
-        local_mode = args.local_mode = 'y'
-        rfid_port = args.rfid_port
-        limit_action = args.limit_action
-        credit_action = args.credit_action
-    else:
-        local_mode = confparser.get('ClientConfig', 'local_mode') == 'y'
-        limit_action = confparser.get('ClientConfig', 'limit_action')
-        credit_action = confparser.get('ClientConfig', 'credit_action')
-        try:
-            rfid_port = confparser.get('ClientConfig', 'rfid_port')
-        except ConfigParser.NoOptionError:
-            rfid_port = None
-        
-    options = SnackspaceOptions(local_mode, rfid_port, limit_action, credit_action)
-    snackspace = Snackspace(window, size, options)
-
-    logging.basicConfig(level=logging.DEBUG)
-
-    snackspace.start()
-
-if __name__ == "__main__":
-    main()
 
 def add_credit_successful(packet):
     """ Parses reply for a successful addition of credit to user account """
@@ -466,3 +415,54 @@ def add_product_successful(packet):
     if packet.type == "result" and packet.data['action'] == "addproduct":
         success = (packet.data['result'] == "Success")
     return success
+
+def main(_argv=None):
+    """ Entry point for snackspace client application """
+    argparser = argparse.ArgumentParser(description='Snackspace Server')
+    argparser.add_argument('-H', dest='host_ip', nargs='?', default='localhost', const='localhost')
+    argparser.add_argument('-P', dest='rfid_port', nargs='?', default=None)
+    argparser.add_argument('--limitaction', dest='limit_action', nargs='?', default='ignore')
+    argparser.add_argument('--creditaction', dest='credit_action', nargs='?', default='disallow')
+    argparser.add_argument('--file', dest='conffile', nargs='?', default='')
+
+    args = argparser.parse_args()
+
+    # # Read arguments from configuration file
+    try:
+        confparser = ConfigParser.ConfigParser()
+        print os.getcwd()
+        confparser.readfp(open("Client/" + args.conffile))
+
+    except IOError:
+        # # Configuration file does not exist, or no filename supplied
+        confparser = None
+
+    pygame.init()
+    
+    size = [800, 600]
+
+    window = pygame.display.set_mode(size)
+
+    if confparser is None:
+        host_ip = args.host_ip
+        rfid_port = args.rfid_port
+        limit_action = args.limit_action
+        credit_action = args.credit_action
+    else:
+        host_ip = confparser.get('ClientConfig', 'host_ip')
+        limit_action = confparser.get('ClientConfig', 'limit_action')
+        credit_action = confparser.get('ClientConfig', 'credit_action')
+        try:
+            rfid_port = confparser.get('ClientConfig', 'rfid_port')
+        except ConfigParser.NoOptionError:
+            rfid_port = None
+        
+    options = SnackspaceOptions(host_ip, rfid_port, limit_action, credit_action)
+    snackspace = Snackspace(window, size, options)
+
+    logging.basicConfig(level=logging.DEBUG)
+
+    snackspace.start()
+
+if __name__ == "__main__":
+    main()

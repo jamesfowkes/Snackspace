@@ -35,13 +35,13 @@ class MessagingQueueItem: #pylint: disable=R0903
 class DbClient(threading.Thread):
 
     """ Implementation of DbClient class """
-    def __init__(self, local, task_handler, callback):
+    def __init__(self, host_ip, task_handler, callback):
 
         """ Initialise the database client thread """
         
         threading.Thread.__init__(self)
         
-        self.local = local
+        self.server_host = host_ip
         self.callbacks = []
         self.send_queue = Queue.Queue()
         
@@ -55,11 +55,6 @@ class DbClient(threading.Thread):
         self.stopReq = threading.Event()
         self.stopped = False
         
-        if self.local:
-            self.server_host = 'localhost'
-        else:
-            self.server_host = ''
-
         self.server_address = ()
         
         logging.basicConfig(level=logging.DEBUG)
