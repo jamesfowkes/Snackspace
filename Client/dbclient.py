@@ -82,8 +82,11 @@ class DbClient(threading.Thread):
         self.stopReq.set()
         
     def process_item(self, item):
-    
-        reply, recvd = self.send(item.message)
+        
+        if item.type == PacketTypes.Ping:
+            reply, recvd = self.send(item.message, True)
+        else:
+            reply, recvd = self.send(item.message)
             
         if recvd > 0:
             try:

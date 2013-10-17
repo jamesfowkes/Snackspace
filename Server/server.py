@@ -27,13 +27,13 @@ class Server:
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.dbase = database
 
-        server_host = "0.0.0.0"
+        
         server_port = 10000
 
         started = False
 
         while (not started) and (server_port < 11000):
-            server_address = (server_host, server_port)
+            server_address = ('', server_port)
             try:
                 self.logger.info('Trying server start on %s port %s' % server_address)
                 self.sock.bind(server_address)
