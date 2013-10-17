@@ -116,7 +116,8 @@ class InputHandler:  # pylint: disable=R0903
     FAKE_GOOD_PRODUCT = 3
     FAKE_BAD_PRODUCT = 4
     FULLSCREEN_TOGGLE = 5
-    QUIT = 6
+    CURSOR_TOGGLE = 6
+    QUIT = 7
     
     def __init__(self):
         """ Initialise the class """
@@ -154,6 +155,9 @@ class InputHandler:  # pylint: disable=R0903
             
         elif (event.key == pygame.K_s) and (pygame.key.get_mods() & pygame.KMOD_CTRL):
             result = self.FULLSCREEN_TOGGLE
+        
+        elif (event.key == pygame.K_m) and (pygame.key.get_mods() & pygame.KMOD_CTRL):
+            result = self.CURSOR_TOGGLE
             
         elif (event.key == pygame.K_c) and (pygame.key.get_mods() & pygame.KMOD_CTRL):
             result = self.QUIT
@@ -185,6 +189,7 @@ class Snackspace:  # pylint: disable=R0902
         self.rfid = RFIDReader(self.options.rfid_port)
         
         self.is_fullscreen = True
+        self.cursor_visible = False
         
         self.window_size = size
         self.screen_manager = ScreenManager(self, window, size)
@@ -310,6 +315,11 @@ class Snackspace:  # pylint: disable=R0902
         elif result == InputHandler.FULLSCREEN_TOGGLE:
             self.set_fullscreen(not self.is_fullscreen)
             self.screen_manager.req(self.screen_manager.currentscreen, True)
+            
+        elif result == InputHandler.CURSOR_TOGGLE:
+            self.cursor_visible = not self.cursor_visible
+            pygame.mouse.set_visible(self.cursor_visible)
+            
         elif result == InputHandler.QUIT:
             self.quit()
 
@@ -480,6 +490,8 @@ def main(_argv=None):
 
     window = pygame.display.set_mode(size, pygame.FULLSCREEN)
 
+    pygame.mouse.set_visible(False)
+    
     if confparser is None:
         host_ip = args.host_ip
         rfid_port = args.rfid_port
