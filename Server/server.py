@@ -19,7 +19,7 @@ from messaging import Message
 class Server:
     """ Implementation of the Server """
     
-    def __init__(self, local_mode, database):
+    def __init__(self, database):
 
         logging.basicConfig(level=logging.DEBUG)
         self.logger = logging.getLogger("SSServer")
@@ -27,12 +27,7 @@ class Server:
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.dbase = database
 
-        if local_mode:
-            server_host = 'localhost'
-
-        else:
-            server_host = socket.gethostname()
-
+        server_host = "0.0.0.0"
         server_port = 10000
 
         started = False
@@ -100,7 +95,7 @@ def main(_argv = None):
     ## Read arguments from command line
     argparser = argparse.ArgumentParser(description='Snackspace Server')
     argparser.add_argument('--file', dest='conffile', nargs='?', default='')
-    argparser.add_argument('-L', dest='localmode', nargs='?', default='n', const='y')
+    argparser.add_argument('-L', dest='local_db', nargs='?', default='n', const='y')
 
     args = argparser.parse_args()
 
@@ -114,13 +109,13 @@ def main(_argv = None):
         
     if confparser is None:
         ## Use command line options
-        localmode = args.localmode == 'y'
+        local_db = args.local_db == 'y'
     else:
         ## Use configuration file options:
-        localmode = confparser.get('ServerConfig','localmode') == 'y'
+        local_db = confparser.get('ServerConfig','local_db') == 'y'
 
-    database = DbServer(localmode)
-    __server = Server(localmode, database)
+    database = DbServer(local_db)
+    __server = Server(database)
 
 
 if __name__ == "__main__":

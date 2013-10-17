@@ -41,7 +41,7 @@ class DbClient(threading.Thread):
         
         threading.Thread.__init__(self)
         
-        self.server_host = host_ip
+        self.server_host = str(host_ip)
         self.callbacks = []
         self.send_queue = Queue.Queue()
         
