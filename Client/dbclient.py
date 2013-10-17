@@ -291,18 +291,4 @@ def parse_reply(message):
 
         if packettype == PacketTypes.Ping:
             return Message(PacketTypes.PingReply)
-           
-def process_transaction_result(item, packet):        
-    """ Send transaction result from the DB back to application """
-    
-    item.callback( packet.data['memberid'], transaction_total(packet), transactions_successful(packet) )
-    
-def process_add_product_result(item, packet):
-    """ Send add product result from the DB back to application """             
-    item.callback( packet.data['barcode'], packet.data['description'], add_product_successful(packet) )
-
-def process_add_credit_result(item, packet):
-    """ Send add credit result from the DB back to application """
-    item.callback( packet.data['memberid'], int(packet.data['credit']), add_credit_successful(packet))
-  
 
