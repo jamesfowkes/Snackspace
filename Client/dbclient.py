@@ -7,8 +7,6 @@ the database server
 import socket
 import logging
 
-import signal
-
 from messaging import Message, Packet, PacketTypes, InputException
 
 from xml.dom.minidom import parseString
@@ -54,6 +52,9 @@ class DbClient(threading.Thread):
         self.test_port = 10000
         self.first_update = True
         
+        self.stopReq = threading.Event()
+        self.stopped = False
+        
         if self.local:
             self.server_host = 'localhost'
         else:
@@ -71,7 +72,7 @@ class DbClient(threading.Thread):
         
         self.reset_and_begin_search()
         
-        while (True):
+        while (not self.stopReq.isSet()):
             
             try:
                 item = self.send_queue.get(False)
@@ -80,6 +81,11 @@ class DbClient(threading.Thread):
             except Queue.Empty:
                 pass
     
+        self.stopped = True
+        
+    def stop(self):
+        self.stopReq.set()
+        
     def process_item(self, item):
     
         reply, recvd = self.send(item.message)

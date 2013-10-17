@@ -198,7 +198,7 @@ class Snackspace:  # pylint: disable=R0902
         while (1):
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
-                    sys.exit()
+                    self.quit()
                 if event.type == pygame.MOUSEBUTTONUP:
                     self.logger.debug("GUI Event")
                     self.screen_manager.current.on_gui_event(event.pos)
@@ -219,6 +219,14 @@ class Snackspace:  # pylint: disable=R0902
 
                 self.task_handler.tick()
     
+    def quit(self):
+        
+        #Request the DB client thread stop and wait for it to stop
+        self.dbaccess.stop()
+        while self.dbaccess.is_alive():
+            pass
+        sys.exit()
+        
     def handle_new_packet(self, packet):
         if packet.type == PacketTypes.ProductData:
             self.on_db_got_product_data(packet)
@@ -267,7 +275,7 @@ class Snackspace:  # pylint: disable=R0902
             self.screen_manager.req(Screens.PRODUCTENTRY)
         
         elif result == InputHandler.QUIT:
-            sys.exit()
+            self.quit()
 
     def rfid_task(self):
         """ To be run periodically to check for an RFID swipe """
