@@ -55,10 +55,10 @@ class ScreenManager:
         """ Return the current screen object """
         return self.screens[self.currentscreen]
 
-    def req(self, newscreen):
+    def req(self, newscreen, force = False):
         """ Request to show a new screen """
         valid = False
-        if (newscreen == self.currentscreen) or self.is_valid_transition(newscreen):
+        if (newscreen == self.currentscreen) or self.is_valid_transition(newscreen) or force:
             self.logger.debug("Changing screen from %s to %s" % (self.currentscreen, newscreen))
 
             if self.currentscreen not in [Screens.BLANKSCREEN, newscreen]:

@@ -39,7 +39,7 @@ from collections import namedtuple
 
 from messaging import PacketTypes
 
-SnackspaceOptions = namedtuple("SnackspaceOptions", "localdb rfid_port limit_action credit_action")  # pylint: disable=C0103
+SnackspaceOptions = namedtuple("SnackspaceOptions", "hostip rfid_port limit_action credit_action")  # pylint: disable=C0103
 
 class ChargeAllHandler:
     
@@ -115,7 +115,9 @@ class InputHandler:  # pylint: disable=R0903
     FAKE_RFID = 2
     FAKE_GOOD_PRODUCT = 3
     FAKE_BAD_PRODUCT = 4
-    QUIT = 5
+    FULLSCREEN_TOGGLE = 5
+    CURSOR_TOGGLE = 6
+    QUIT = 7
     
     def __init__(self):
         """ Initialise the class """
@@ -150,7 +152,13 @@ class InputHandler:  # pylint: disable=R0903
     
         elif (event.key == pygame.K_f) and (pygame.key.get_mods() & pygame.KMOD_CTRL):
             result = self.FAKE_BAD_PRODUCT
+            
+        elif (event.key == pygame.K_s) and (pygame.key.get_mods() & pygame.KMOD_CTRL):
+            result = self.FULLSCREEN_TOGGLE
         
+        elif (event.key == pygame.K_m) and (pygame.key.get_mods() & pygame.KMOD_CTRL):
+            result = self.CURSOR_TOGGLE
+            
         elif (event.key == pygame.K_c) and (pygame.key.get_mods() & pygame.KMOD_CTRL):
             result = self.QUIT
             
@@ -180,6 +188,10 @@ class Snackspace:  # pylint: disable=R0902
 
         self.rfid = RFIDReader(self.options.rfid_port)
         
+        self.is_fullscreen = True
+        self.cursor_visible = False
+        
+        self.window_size = size
         self.screen_manager = ScreenManager(self, window, size)
 
         self.user = None
@@ -187,7 +199,7 @@ class Snackspace:  # pylint: disable=R0902
 
         self.reply_queue = Queue.Queue()
         
-        self.dbaccess = DbClient(self.options.localdb, self.task_handler, self.db_state_callback)
+        self.dbaccess = DbClient(self.options.hostip, self.task_handler, self.db_state_callback)
         self.dbaccess.daemon = True
         self.dbaccess.start()
         
@@ -198,7 +210,7 @@ class Snackspace:  # pylint: disable=R0902
         while (1):
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
-                    sys.exit()
+                    self.quit()
                 if event.type == pygame.MOUSEBUTTONUP:
                     self.logger.debug("GUI Event")
                     self.screen_manager.current.on_gui_event(event.pos)
@@ -219,6 +231,38 @@ class Snackspace:  # pylint: disable=R0902
 
                 self.task_handler.tick()
     
+    def quit(self):
+        
+        #Request the DB client thread stop and wait for it to stop
+        self.dbaccess.stop()
+        while self.dbaccess.is_alive():
+            pass
+        sys.exit()
+    
+    def set_fullscreen(self, fullscreen):
+        
+        screen = pygame.display.get_surface()
+        tmp = screen.convert()
+        caption = pygame.display.get_caption() 
+        
+        flags = screen.get_flags()
+        
+        if fullscreen:
+            flags = flags | pygame.FULLSCREEN
+        else:
+            flags = flags & ~pygame.FULLSCREEN
+            
+        bits = screen.get_bitsize()
+        
+        #pygame.display.quit()
+        #pygame.display.init()
+        
+        screen = pygame.display.set_mode(self.window_size, flags, bits)
+        screen.blit(tmp,(0,0))
+        pygame.display.set_caption(*caption)
+        
+        self.is_fullscreen = fullscreen
+        
     def handle_new_packet(self, packet):
         if packet.type == PacketTypes.ProductData:
             self.on_db_got_product_data(packet)
@@ -226,6 +270,8 @@ class Snackspace:  # pylint: disable=R0902
             self.on_db_got_unknown_product(packet)
         elif packet.type == PacketTypes.UserData:
             self.on_db_got_user_data(packet)
+        elif packet.type == PacketTypes.RandomProduct:
+            self.on_db_random_product_callback(packet)
         elif packet.type == PacketTypes.Result:
             if packet.data['action'] == PacketTypes.Transaction:
                 self.charge_all_handler.on_db_send_transactions_callback(packet)
@@ -249,7 +295,7 @@ class Snackspace:  # pylint: disable=R0902
             
         elif result == InputHandler.FAKE_GOOD_PRODUCT:
             # # Fake a good product scan
-            self.dbaccess.get_random_product(self.on_db_random_product_callback)
+            self.dbaccess.get_random_product(self.reply_queue)
             
         elif result == InputHandler.FAKE_RFID:
             # # Fake an RFID swipe
@@ -266,8 +312,16 @@ class Snackspace:  # pylint: disable=R0902
             # # Go to product entry screen
             self.screen_manager.req(Screens.PRODUCTENTRY)
         
+        elif result == InputHandler.FULLSCREEN_TOGGLE:
+            self.set_fullscreen(not self.is_fullscreen)
+            self.screen_manager.req(self.screen_manager.currentscreen, True)
+            
+        elif result == InputHandler.CURSOR_TOGGLE:
+            self.cursor_visible = not self.cursor_visible
+            pygame.mouse.set_visible(self.cursor_visible)
+            
         elif result == InputHandler.QUIT:
-            sys.exit()
+            self.quit()
 
     def rfid_task(self):
         """ To be run periodically to check for an RFID swipe """
@@ -285,10 +339,6 @@ class Snackspace:  # pylint: disable=R0902
                 self.screen_manager.get(Screens.MAINSCREEN).clear_all()
                 self.forget_products()
                 self.forget_user()
-    
-    def on_db_random_product_callback(self, data):
-        """ Callback when random product data is returned from the database """
-        self.on_scan_event(data[0])
         
     def on_swipe_event(self, cardnumber):
         """ When an RFID swipe is made, gets user from the database """
@@ -348,7 +398,12 @@ class Snackspace:  # pylint: disable=R0902
         else:
             # Otherwise need to get product info from the database
             self.dbaccess.get_product(barcode, self.reply_queue)
-
+            
+    def on_db_random_product_callback(self, packet):
+        """ Callback when random product data is returned from the database """
+        barcode = packet.data['barcode']
+        self.on_scan_event(barcode)
+        
     def on_db_got_user_data(self, packet):
         """ Callback when user data returned """
         
@@ -381,57 +436,6 @@ class Snackspace:  # pylint: disable=R0902
         """ Called when user data request failed """
         barcode = packet.data['barcode']
         self.screen_manager.current.on_bad_scan(barcode)
-            
-def main(_argv=None):
-    """ Entry point for snackspace client application """
-    argparser = argparse.ArgumentParser(description='Snackspace Server')
-    argparser.add_argument('-L', dest='local_mode', nargs='?', default='n', const='y')
-    argparser.add_argument('-P', dest='rfid_port', nargs='?', default=None)
-    argparser.add_argument('--limitaction', dest='limit_action', nargs='?', default='ignore')
-    argparser.add_argument('--creditaction', dest='credit_action', nargs='?', default='disallow')
-    argparser.add_argument('--file', dest='conffile', nargs='?', default='')
-
-    args = argparser.parse_args()
-
-    # # Read arguments from configuration file
-    try:
-        confparser = ConfigParser.ConfigParser()
-        print os.getcwd()
-        confparser.readfp(open("Client/" + args.conffile))
-
-    except IOError:
-        # # Configuration file does not exist, or no filename supplied
-        confparser = None
-
-    pygame.init()
-    
-    size = [800, 600]
-
-    window = pygame.display.set_mode(size)
-
-    if confparser is None:
-        local_mode = args.local_mode = 'y'
-        rfid_port = args.rfid_port
-        limit_action = args.limit_action
-        credit_action = args.credit_action
-    else:
-        local_mode = confparser.get('ClientConfig', 'local_mode') == 'y'
-        limit_action = confparser.get('ClientConfig', 'limit_action')
-        credit_action = confparser.get('ClientConfig', 'credit_action')
-        try:
-            rfid_port = confparser.get('ClientConfig', 'rfid_port')
-        except ConfigParser.NoOptionError:
-            rfid_port = None
-        
-    options = SnackspaceOptions(local_mode, rfid_port, limit_action, credit_action)
-    snackspace = Snackspace(window, size, options)
-
-    logging.basicConfig(level=logging.DEBUG)
-
-    snackspace.start()
-
-if __name__ == "__main__":
-    main()
 
 def add_credit_successful(packet):
     """ Parses reply for a successful addition of credit to user account """
@@ -458,3 +462,56 @@ def add_product_successful(packet):
     if packet.type == "result" and packet.data['action'] == "addproduct":
         success = (packet.data['result'] == "Success")
     return success
+
+def main(_argv=None):
+    """ Entry point for snackspace client application """
+    argparser = argparse.ArgumentParser(description='Snackspace Server')
+    argparser.add_argument('-H', dest='host_ip', nargs='?', default='localhost', const='localhost')
+    argparser.add_argument('-P', dest='rfid_port', nargs='?', default=None)
+    argparser.add_argument('--limitaction', dest='limit_action', nargs='?', default='ignore')
+    argparser.add_argument('--creditaction', dest='credit_action', nargs='?', default='disallow')
+    argparser.add_argument('--file', dest='conffile', nargs='?', default='')
+
+    args = argparser.parse_args()
+
+    # # Read arguments from configuration file
+    try:
+        confparser = ConfigParser.ConfigParser()
+        print os.getcwd()
+        confparser.readfp(open("Client/" + args.conffile))
+
+    except IOError:
+        # # Configuration file does not exist, or no filename supplied
+        confparser = None
+
+    pygame.init()
+    
+    size = [800, 600]
+
+    window = pygame.display.set_mode(size, pygame.FULLSCREEN)
+
+    pygame.mouse.set_visible(False)
+    
+    if confparser is None:
+        host_ip = args.host_ip
+        rfid_port = args.rfid_port
+        limit_action = args.limit_action
+        credit_action = args.credit_action
+    else:
+        host_ip = confparser.get('ClientConfig', 'host_ip')
+        limit_action = confparser.get('ClientConfig', 'limit_action')
+        credit_action = confparser.get('ClientConfig', 'credit_action')
+        try:
+            rfid_port = confparser.get('ClientConfig', 'rfid_port')
+        except ConfigParser.NoOptionError:
+            rfid_port = None
+        
+    options = SnackspaceOptions(host_ip, rfid_port, limit_action, credit_action)
+    snackspace = Snackspace(window, size, options)
+
+    logging.basicConfig(level=logging.DEBUG)
+
+    snackspace.start()
+
+if __name__ == "__main__":
+    main()

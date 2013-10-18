@@ -7,8 +7,6 @@ the database server
 import socket
 import logging
 
-import signal
-
 from messaging import Message, Packet, PacketTypes, InputException
 
 from xml.dom.minidom import parseString
@@ -37,13 +35,13 @@ class MessagingQueueItem: #pylint: disable=R0903
 class DbClient(threading.Thread):
 
     """ Implementation of DbClient class """
-    def __init__(self, local, task_handler, callback):
+    def __init__(self, host_ip, task_handler, callback):
 
         """ Initialise the database client thread """
         
         threading.Thread.__init__(self)
         
-        self.local = local
+        self.server_host = str(host_ip)
         self.callbacks = []
         self.send_queue = Queue.Queue()
         
@@ -54,11 +52,9 @@ class DbClient(threading.Thread):
         self.test_port = 10000
         self.first_update = True
         
-        if self.local:
-            self.server_host = 'localhost'
-        else:
-            self.server_host = ''
-
+        self.stopReq = threading.Event()
+        self.stopped = False
+        
         self.server_address = ()
         
         logging.basicConfig(level=logging.DEBUG)
@@ -71,7 +67,7 @@ class DbClient(threading.Thread):
         
         self.reset_and_begin_search()
         
-        while (True):
+        while (not self.stopReq.isSet()):
             
             try:
                 item = self.send_queue.get(False)
@@ -80,9 +76,17 @@ class DbClient(threading.Thread):
             except Queue.Empty:
                 pass
     
+        self.stopped = True
+        
+    def stop(self):
+        self.stopReq.set()
+        
     def process_item(self, item):
-    
-        reply, recvd = self.send(item.message)
+        
+        if item.type == PacketTypes.Ping:
+            reply, recvd = self.send(item.message, True)
+        else:
+            reply, recvd = self.send(item.message)
             
         if recvd > 0:
             try:
@@ -95,6 +99,8 @@ class DbClient(threading.Thread):
                     elif packet.type == PacketTypes.PingReply:
                         self.got_ping_reply(packet, recvd)
                     elif packet.type in (PacketTypes.ProductData, PacketTypes.UnknownProduct):
+                        item.queue.put(packet)
+                    elif packet.type in (PacketTypes.RandomProduct):
                         item.queue.put(packet)
                     elif packet.type == PacketTypes.Result:
                         if packet.data['action'] == PacketTypes.Transaction:
@@ -169,26 +175,12 @@ class DbClient(threading.Thread):
 
         self.send_queue.put( MessagingQueueItem(PacketTypes.AddCredit, message, queue))
         
-    def get_random_product(self, callback):
+    def get_random_product(self, queue):
         """ Pull the data for a random product - useful for testing """
         packet = Packet(PacketTypes.RandomProduct, {})
         message = Message(packet).get_xml()
         
-        reply, _recvd = self.send(message)
-        reply = Message.parse_xml(reply)
-        reply = reply[0]
-        
-        data = None
-        
-        if reply.type == "productdata":
-            barcode = reply.data['barcode']
-            desc = reply.data['description']
-            priceinpence = reply.data['priceinpence']
-            data = (barcode, desc, priceinpence)
-        else:
-            raise BadReplyException
-    
-        callback(data)
+        self.send_queue.put( MessagingQueueItem(PacketTypes.GetRandomProduct, message, queue))
         
     def ping_server(self):
         """ Ping the server to test it's still there """    
@@ -228,7 +220,7 @@ class DbClient(threading.Thread):
         self.state_callback(old_connection_state, self.found_server, self.first_update)
         self.first_update = False
         
-    def send(self, message):
+    def send(self, message, force = False):
         """ Sends message on current socket and waits for response """
         received = 0
         data = ''
@@ -237,35 +229,36 @@ class DbClient(threading.Thread):
 
         self.test_connection_task.active = False
         
-        try:
-            self.sock.connect(self.server_address)
-
-            self.logger.info("Sending %s" % message)
-
-            length = len(message)
-            message = "%5s%s" % (length, message)
-
-            self.sock.settimeout(5)
-            self.sock.sendall(message)
+        if self.found_server or force:
             try:
-                length = int(self.sock.recv(5))
-                data = self.sock.recv(length)
-            except ValueError:
-                pass
-            
-            received = len(data)
-
-        except socket.timeout:
-            received = 0
-            data = ''
-        except socket.error as err:
-            self.logger.info("Socket open failed with '%s'" % err.strerror)
-            received = 0
-            data = ''
-
-        finally:
-            self.sock.close()
-            self.test_connection_task.active = True
+                self.sock.connect(self.server_address)
+    
+                self.logger.info("Sending %s" % message)
+    
+                length = len(message)
+                message = "%5s%s" % (length, message)
+    
+                self.sock.settimeout(5)
+                self.sock.sendall(message)
+                try:
+                    length = int(self.sock.recv(5))
+                    data = self.sock.recv(length)
+                except ValueError:
+                    pass
+                
+                received = len(data)
+    
+            except socket.timeout:
+                received = 0
+                data = ''
+            except socket.error as err:
+                self.logger.info("Socket open failed with '%s'" % err.strerror)
+                received = 0
+                data = ''
+    
+            finally:
+                self.sock.close()
+                self.test_connection_task.active = True
 
         return data, received
 
@@ -285,18 +278,4 @@ def parse_reply(message):
 
         if packettype == PacketTypes.Ping:
             return Message(PacketTypes.PingReply)
-           
-def process_transaction_result(item, packet):        
-    """ Send transaction result from the DB back to application """
-    
-    item.callback( packet.data['memberid'], transaction_total(packet), transactions_successful(packet) )
-    
-def process_add_product_result(item, packet):
-    """ Send add product result from the DB back to application """             
-    item.callback( packet.data['barcode'], packet.data['description'], add_product_successful(packet) )
-
-def process_add_credit_result(item, packet):
-    """ Send add credit result from the DB back to application """
-    item.callback( packet.data['memberid'], int(packet.data['credit']), add_credit_successful(packet))
-  
 
