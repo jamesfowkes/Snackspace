@@ -60,6 +60,7 @@ class IntroScreenGUI(ScreenGUI):
     def set_intro_text_2(self, text, color):
         """ The intro text is positioned between the image and the base """
         text_y_position = (self.objects['titleimage'].b() + self.border.bottom()) / 2
+	text_y_position = text_y_position - 30
         self.objects['introtext2'] = LCARSText((self.width/2, text_y_position),
                 text,
                 36,
@@ -67,7 +68,7 @@ class IntroScreenGUI(ScreenGUI):
 
     def set_intro_text_3(self, text, color):
         """ The intro text is positioned between the image and the base """
-        text_y_position = self.objects['introtext2'].t() + 50
+        text_y_position = self.objects['introtext2'].t() + 80
         self.objects['introtext3'] = LCARSText((self.width/2, text_y_position),
                 text,
                 36,
