@@ -39,7 +39,7 @@ from collections import namedtuple
 
 from messaging import PacketTypes
 
-SnackspaceOptions = namedtuple("SnackspaceOptions", "hostip rfid_port limit_action credit_action")  # pylint: disable=C0103
+SnackspaceOptions = namedtuple("SnackspaceOptions", "hostip rfid_port limit_action credit_action, start_fullscreen")  # pylint: disable=C0103
 
 class ChargeAllHandler:
     
@@ -463,13 +463,14 @@ def add_product_successful(packet):
         success = (packet.data['result'] == "Success")
     return success
 
-def main(_argv=None):
-    """ Entry point for snackspace client application """
+def get_options():
+    
     argparser = argparse.ArgumentParser(description='Snackspace Server')
     argparser.add_argument('-H', dest='host_ip', nargs='?', default='localhost', const='localhost')
     argparser.add_argument('-P', dest='rfid_port', nargs='?', default=None)
     argparser.add_argument('--limitaction', dest='limit_action', nargs='?', default='ignore')
     argparser.add_argument('--creditaction', dest='credit_action', nargs='?', default='disallow')
+    argparser.add_argument('--fullscreen', dest='start_fullscreen', nargs='?', default='n')
     argparser.add_argument('--file', dest='conffile', nargs='?', default='')
 
     args = argparser.parse_args()
@@ -483,30 +484,53 @@ def main(_argv=None):
     except IOError:
         # # Configuration file does not exist, or no filename supplied
         confparser = None
-
-    pygame.init()
-    
-    size = [800, 600]
-
-    window = pygame.display.set_mode(size, pygame.FULLSCREEN)
-
-    pygame.mouse.set_visible(False)
-    
+ 
     if confparser is None:
         host_ip = args.host_ip
         rfid_port = args.rfid_port
         limit_action = args.limit_action
         credit_action = args.credit_action
+        start_fullscreen = args.start_fullscreen
     else:
         host_ip = confparser.get('ClientConfig', 'host_ip')
         limit_action = confparser.get('ClientConfig', 'limit_action')
         credit_action = confparser.get('ClientConfig', 'credit_action')
+        start_fullscreen = confparser.get('ClientConfig', 'start_fullscreen')
         try:
             rfid_port = confparser.get('ClientConfig', 'rfid_port')
         except ConfigParser.NoOptionError:
             rfid_port = None
         
-    options = SnackspaceOptions(host_ip, rfid_port, limit_action, credit_action)
+    options = SnackspaceOptions(host_ip, rfid_port, limit_action, credit_action, start_fullscreen)
+    
+    return options
+
+def init_pygame(fullscreen):
+    
+    """ Initialises the pygame module and generates window
+    to draw on. Return the window and the size """
+                
+    pygame.init()
+    
+    size = [800, 600]
+
+    if fullscreen:
+        window = pygame.display.set_mode(size, pygame.FULLSCREEN)
+    else:
+        window = pygame.display.set_mode(size)
+
+    pygame.mouse.set_visible(False)
+    
+    return window, size
+      
+def main(_argv=None):
+    
+    """ Entry point for snackspace client application """
+    
+    options = get_options()
+    
+    window, size = init_pygame(options.start_fullscreen == 'y')
+    
     snackspace = Snackspace(window, size, options)
 
     logging.basicConfig(level=logging.DEBUG)
